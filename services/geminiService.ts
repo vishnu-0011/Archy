@@ -15,6 +15,12 @@ Design highly **organized**, **readable**, and **professional** system architect
 **MERMAID SYNTAX RULES (STRICT):**
 1.  **Grouping**: ALWAYS use \`subgraph\`.
 2.  **Comments**: **NEVER** use inline comments (e.g., \`A --> B %% comment\`). Place comments on their own separate line **above** the code they refer to.
+    *   *Incorrect*: \`User --> API %% user calls api\`
+    *   *Correct*:
+        \`\`\`
+        %% user calls api
+        User --> API
+        \`\`\`
 3.  **No Chaining**: Do **not** use the \`&\` syntax (e.g., \`A --> B & C\`). Define each connection on a **separate line**.
     *   *Correct*:
         \`\`\`
@@ -97,6 +103,23 @@ graph TD
 \`\`\`
 `;
 
+const cleanMermaidCode = (code: string): string => {
+  return code
+    .split('\n')
+    .map(line => {
+      // If the line is purely a comment (starts with %% optionally preceded by whitespace), keep it.
+      if (/^\s*%%/.test(line)) return line;
+      
+      // If the line has an inline comment (%% somewhere in the middle), strip it to avoid parser errors.
+      const commentIdx = line.indexOf('%%');
+      if (commentIdx !== -1) {
+        return line.substring(0, commentIdx).trim();
+      }
+      return line;
+    })
+    .join('\n');
+};
+
 export const generateArchitecture = async (prompt: string, repoContext?: string): Promise<GenerateArchitectureResponse> => {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -146,7 +169,7 @@ ${prompt}
 
     return {
       explanation,
-      mermaidCode
+      mermaidCode: cleanMermaidCode(mermaidCode)
     };
 
   } catch (error) {
