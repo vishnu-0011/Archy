@@ -27,11 +27,11 @@ Design highly **organized**, **readable**, and **professional** system architect
         A --> B
         A --> C
         \`\`\`
-4.  **Node Labels**: Always wrap labels in brackets/parentheses/braces.
-    *   DB: \`db[(Name)]\`
-    *   Queue: \`q{{Name}}\`
-    *   User: \`u([Name])\`
-    *   Component: \`c[Name]\`
+4.  **Node Labels**: **ALWAYS** quote the text inside the brackets. This is mandatory to prevent syntax errors with parentheses or special characters.
+    *   DB: \`db[("Database Name")]\`
+    *   Queue: \`q{{"Queue Name"}}\`
+    *   User: \`u(["User Name"])\`
+    *   Component: \`c["Component Name"]\`
 
 **AGENT WORKFLOW:**
 1.  **Analyze**: Identify domain, users, constraints.
@@ -51,32 +51,32 @@ graph TD
     classDef queue fill:#fff3e0,stroke:#e65100,stroke-width:2px;
 
     %% Actors
-    User([User])
+    User(["User"])
 
     %% Client Layer
     subgraph Client ["Client Layer"]
-        App[Web Application]
-        Mobile[Mobile App]
+        App["Web Application"]
+        Mobile["Mobile App"]
     end
 
     %% Edge Layer
     subgraph Edge ["API Gateway / Edge"]
-        LB[Load Balancer]
-        Gateway[API Gateway]
+        LB["Load Balancer"]
+        Gateway["API Gateway"]
     end
 
     %% Business Layer
     subgraph Services ["Microservices"]
-        Auth[Auth Service]
-        Order[Order Service]
-        Pay[Payment Service]
+        Auth["Auth Service"]
+        Order["Order Service"]
+        Pay["Payment Service"]
     end
 
     %% Data Layer
     subgraph Data ["Persistence"]
-        UserDB[(User DB)]
-        OrderDB[(Order DB)]
-        Cache[(Redis Cache)]
+        UserDB[("User DB")]
+        OrderDB[("Order DB")]
+        Cache[("Redis Cache")]
     end
 
     %% Connections - Logical Flow Top to Bottom
@@ -115,7 +115,7 @@ const cleanMermaidCode = (code: string): string => {
       if (commentIdx !== -1) {
         return line.substring(0, commentIdx).trim();
       }
-      return line;
+      return line.trimEnd();
     })
     .join('\n');
 };
