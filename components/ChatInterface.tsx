@@ -1,6 +1,6 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Message, Sender } from '../types';
-import { Send, Bot, User, Code, Layers } from 'lucide-react';
+import { Send, Bot, User, Code, Layers, Github, X } from 'lucide-react';
 
 interface ChatInterfaceProps {
   messages: Message[];
@@ -21,6 +21,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [isGithubMode, setIsGithubMode] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -34,6 +35,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       onSend();
+    }
+  };
+
+  const toggleGithubMode = () => {
+    if (isGithubMode) {
+      setIsGithubMode(false);
+      if (input.startsWith("https://github.com/")) {
+        setInput('');
+      }
+    } else {
+      setIsGithubMode(true);
+      if (!input) {
+        setInput('');
+      }
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
   };
 
@@ -130,23 +146,53 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       {/* Input Area */}
       <div className="p-4 bg-gray-900 border-t border-gray-800">
+        
+        {isGithubMode && (
+          <div className="flex items-center gap-2 mb-2 text-xs text-indigo-400 bg-indigo-900/20 p-2 rounded border border-indigo-500/20 animate-in slide-in-from-bottom-2 fade-in">
+            <Github className="w-3 h-3" />
+            <span className="font-medium">Repository Analysis Mode</span>
+            <span className="text-gray-500 ml-auto flex items-center gap-1 cursor-pointer hover:text-gray-300" onClick={toggleGithubMode}>
+                <X className="w-3 h-3" />
+            </span>
+          </div>
+        )}
+
         <div className="relative">
             <textarea
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Describe your system architecture..."
+                placeholder={isGithubMode ? "Paste GitHub URL (e.g., https://github.com/owner/repo)..." : "Describe your system architecture..."}
                 disabled={isLoading}
-                className="w-full bg-gray-800 text-gray-100 rounded-xl pl-4 pr-12 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 border border-gray-700 resize-none h-14 max-h-32 disabled:opacity-50 placeholder-gray-500"
+                className={`w-full bg-gray-800 text-gray-100 rounded-xl pl-4 pr-12 py-3 text-sm focus:outline-none focus:ring-2 border resize-none h-14 max-h-32 disabled:opacity-50 placeholder-gray-500 transition-all ${
+                  isGithubMode 
+                  ? 'focus:ring-indigo-500/50 border-indigo-500/30' 
+                  : 'focus:ring-indigo-500/50 border-gray-700'
+                }`}
             />
-            <button
-                onClick={onSend}
-                disabled={!input.trim() || isLoading}
-                className="absolute right-2 top-2 p-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg disabled:bg-gray-700 disabled:text-gray-500 transition-colors"
-            >
-                <Send className="w-4 h-4" />
-            </button>
+            
+            <div className="absolute right-2 top-2 flex items-center gap-1">
+                <button
+                    onClick={toggleGithubMode}
+                    disabled={isLoading}
+                    className={`p-2 rounded-lg transition-colors ${
+                      isGithubMode 
+                      ? 'bg-gray-700 text-white' 
+                      : 'text-gray-400 hover:bg-gray-700 hover:text-white'
+                    }`}
+                    title="Import from GitHub"
+                >
+                    <Github className="w-4 h-4" />
+                </button>
+                <button
+                    onClick={onSend}
+                    disabled={!input.trim() || isLoading}
+                    className="p-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg disabled:bg-gray-700 disabled:text-gray-500 transition-colors"
+                >
+                    <Send className="w-4 h-4" />
+                </button>
+            </div>
         </div>
         <p className="text-[10px] text-gray-500 mt-2 text-center">
             Powered by Google Gemini • Mermaid.js

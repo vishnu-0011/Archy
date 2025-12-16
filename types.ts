@@ -22,3 +22,10 @@ export interface DiagramState {
   isValid: boolean;
   error?: string;
 }
+
+export interface DiagramVersion {
+  id: string;
+  code: string;
+  timestamp: number;
+  prompt: string;
+}

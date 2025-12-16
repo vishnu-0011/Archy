@@ -1,5 +1,5 @@
 {
   "name": "ArchMind - AI Architecture Designer",
-  "description": "",
+  "description": "A Deep Agent powered assistant for generating complex, organized system architecture diagrams and technical specifications using Mermaid.js and Gemini.",
   "requestFramePermissions": []
 }
