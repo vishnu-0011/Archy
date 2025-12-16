@@ -27,11 +27,18 @@ Design highly **organized**, **readable**, and **professional** system architect
         A --> B
         A --> C
         \`\`\`
-4.  **Node Labels**: **ALWAYS** quote the text inside the brackets. This is mandatory to prevent syntax errors with parentheses or special characters.
-    *   DB: \`db[("Database Name")]\`
-    *   Queue: \`q{{"Queue Name"}}\`
-    *   User: \`u(["User Name"])\`
-    *   Component: \`c["Component Name"]\`
+4.  **Node Labels**: **ALWAYS** quote the text inside the brackets. This is mandatory to prevent syntax errors with parentheses, brackets, or special characters.
+    *   **Standard Node**: \`id["Label Text"]\`  (Square brackets)
+    *   **Round Node**: \`id("Label Text")\` (Round brackets)
+    *   **Database**: \`id[("Database Name")]\` (Cylinder)
+    *   **Queue/Event**: \`id{{"Queue Name"}}\` (Hexagon/Double braces)
+    *   **Input/Output**: \`id[/"Input Output"/]\` (Parallelogram)
+    *   **Terminal**: \`id(["Start/End"])\` (Rounded Stadium)
+    *   **Condition**: \`id{"Decision?"}\` (Diamond)
+    
+    **CRITICAL**: If the label contains parentheses \`()\`, it **MUST** be quoted.
+    *   *Incorrect*: \`A[/File (PDF)/]\`
+    *   *Correct*: \`A[/"File (PDF)"/]\`
 
 **AGENT WORKFLOW:**
 1.  **Analyze**: Identify domain, users, constraints.
@@ -104,7 +111,7 @@ graph TD
 `;
 
 const cleanMermaidCode = (code: string): string => {
-  return code
+  let cleaned = code
     .split('\n')
     .map(line => {
       // If the line is purely a comment (starts with %% optionally preceded by whitespace), keep it.
@@ -118,6 +125,24 @@ const cleanMermaidCode = (code: string): string => {
       return line.trimEnd();
     })
     .join('\n');
+
+  // Fix unquoted parallelogram labels containing parentheses: [/Label (Text)/] -> [/"Label (Text)"/]
+  // Regex explanation:
+  // \[ - literal [
+  // \/ - literal /
+  // ( - start capture group 1
+  //   [^"\]\n]* - match non-quote, non-closing bracket characters
+  //   \( - literal (
+  //   [^\n]* - match anything (assuming one line)
+  //   \) - literal )
+  //   [^"\]\n]* - match remaining non-quote, non-closing bracket characters
+  // ) - end capture group 1
+  // \/ - literal /
+  // \] - literal ]
+  // The goal is to catch [/ Text (With Parens) /] where quotes are missing
+  cleaned = cleaned.replace(/\[\/([^"\]\n]*?\([^\n]*?\)[^"\]\n]*?)\/\]/g, '[/"$1"/]');
+  
+  return cleaned;
 };
 
 export const generateArchitecture = async (prompt: string, repoContext?: string): Promise<GenerateArchitectureResponse> => {

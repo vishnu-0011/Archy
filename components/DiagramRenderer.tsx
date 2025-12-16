@@ -10,56 +10,33 @@ interface DiagramRendererProps {
 const THEMES = {
   original: {
     name: 'Original (Light)',
+    bg: '#ffffff',
+    gridColor: 'rgba(0, 0, 0, 0.06)',
+    config: {
+      theme: 'default',
+      themeVariables: {
+        fontFamily: 'Inter, sans-serif',
+        primaryColor: '#ffffff',
+        primaryTextColor: '#1f2937',
+        primaryBorderColor: '#374151',
+        lineColor: '#374151',
+        background: '#ffffff',
+        mainBkg: '#ffffff',
+        clusterBkg: '#f3f4f6',
+        clusterBorder: '#9ca3af',
+      }
+    },
     defs: {
-      plain: null, // Use original
+      plain: null, // Use prompt defaults (fill:#fff, stroke:#333)
       db: null,
       queue: null
     }
   },
   dark: {
     name: 'Cyberpunk',
-    defs: {
-      plain: 'fill:#1e293b,stroke:#818cf8,stroke-width:2px,color:#e2e8f0', 
-      db: 'fill:#1e293b,stroke:#ec4899,stroke-width:2px,color:#e2e8f0', 
-      queue: 'fill:#1e293b,stroke:#22c55e,stroke-width:2px,color:#e2e8f0'
-    }
-  },
-  blueprint: {
-    name: 'Blueprint',
-    defs: {
-      plain: 'fill:#0f172a,stroke:#38bdf8,stroke-width:1px,color:#38bdf8,stroke-dasharray:0',
-      db: 'fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#38bdf8,stroke-dasharray:5 5',
-      queue: 'fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#38bdf8'
-    }
-  },
-  forest: {
-    name: 'Forest',
-    defs: {
-      plain: 'fill:#ecfdf5,stroke:#059669,stroke-width:1px,color:#064e3b',
-      db: 'fill:#d1fae5,stroke:#047857,stroke-width:2px,color:#064e3b',
-      queue: 'fill:#f0fdf4,stroke:#15803d,stroke-width:2px,color:#064e3b'
-    }
-  }
-};
-
-const DiagramRenderer: React.FC<DiagramRendererProps> = ({ code, extraToolbarContent }) => {
-  const [svgContent, setSvgContent] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
-  const [theme, setTheme] = useState<keyof typeof THEMES>('original');
-  const [showThemeMenu, setShowThemeMenu] = useState(false);
-  const themeMenuRef = useRef<HTMLDivElement>(null);
-  
-  // Zoom & Pan State
-  const [scale, setScale] = useState(1);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    mermaid.initialize({
-      startOnLoad: false,
+    bg: '#0d1117',
+    gridColor: 'rgba(255, 255, 255, 0.03)',
+    config: {
       theme: 'base',
       themeVariables: {
         darkMode: true,
@@ -74,7 +51,88 @@ const DiagramRenderer: React.FC<DiagramRendererProps> = ({ code, extraToolbarCon
         mainBkg: '#0d1117',
         clusterBkg: '#161b22',
         clusterBorder: '#30363d',
-      },
+      }
+    },
+    defs: {
+      plain: 'fill:#1e293b,stroke:#818cf8,stroke-width:2px,color:#e2e8f0', 
+      db: 'fill:#1e293b,stroke:#ec4899,stroke-width:2px,color:#e2e8f0', 
+      queue: 'fill:#1e293b,stroke:#22c55e,stroke-width:2px,color:#e2e8f0'
+    }
+  },
+  blueprint: {
+    name: 'Blueprint',
+    bg: '#1e3a8a',
+    gridColor: 'rgba(255, 255, 255, 0.1)',
+    config: {
+      theme: 'base',
+      themeVariables: {
+        darkMode: true,
+        background: '#1e3a8a',
+        fontFamily: 'Inter, sans-serif',
+        mainBkg: '#1e3a8a',
+        primaryColor: '#172554',
+        primaryTextColor: '#bfdbfe',
+        lineColor: '#60a5fa',
+        primaryBorderColor: '#60a5fa',
+        clusterBkg: '#172554',
+        clusterBorder: '#60a5fa'
+      }
+    },
+    defs: {
+      plain: 'fill:#172554,stroke:#60a5fa,stroke-width:1px,color:#bfdbfe,stroke-dasharray:0',
+      db: 'fill:#172554,stroke:#60a5fa,stroke-width:2px,color:#bfdbfe,stroke-dasharray:5 5',
+      queue: 'fill:#172554,stroke:#60a5fa,stroke-width:2px,color:#bfdbfe'
+    }
+  },
+  forest: {
+    name: 'Forest',
+    bg: '#022c22',
+    gridColor: 'rgba(255, 255, 255, 0.05)',
+    config: {
+      theme: 'base',
+      themeVariables: {
+        darkMode: true,
+        background: '#022c22',
+        fontFamily: 'Inter, sans-serif',
+        mainBkg: '#022c22',
+        primaryColor: '#064e3b',
+        primaryTextColor: '#ecfdf5',
+        lineColor: '#34d399',
+        primaryBorderColor: '#059669',
+        clusterBkg: '#065f46',
+        clusterBorder: '#047857'
+      }
+    },
+    defs: {
+      plain: 'fill:#064e3b,stroke:#34d399,stroke-width:1px,color:#ecfdf5',
+      db: 'fill:#065f46,stroke:#34d399,stroke-width:2px,color:#ecfdf5',
+      queue: 'fill:#065f46,stroke:#10b981,stroke-width:2px,color:#ecfdf5'
+    }
+  }
+};
+
+const DiagramRenderer: React.FC<DiagramRendererProps> = ({ code, extraToolbarContent }) => {
+  const [svgContent, setSvgContent] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+  const [theme, setTheme] = useState<keyof typeof THEMES>('original');
+  const [showThemeMenu, setShowThemeMenu] = useState(false);
+  const themeMenuRef = useRef<HTMLDivElement>(null);
+  
+  const currentThemeConfig = THEMES[theme];
+
+  // Zoom & Pan State
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Initial global setup - individual themes will override this via directive
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'base',
       securityLevel: 'loose',
     });
   }, []);
@@ -90,14 +148,18 @@ const DiagramRenderer: React.FC<DiagramRendererProps> = ({ code, extraToolbarCon
   }, []);
 
   const getThemedCode = (originalCode: string, themeKey: keyof typeof THEMES) => {
-    if (themeKey === 'original') return originalCode;
-
     const themeConfig = THEMES[themeKey];
     if (!themeConfig) return originalCode;
 
     let newCode = originalCode;
     
-    // Helper to safely replace classDefs
+    // 1. Prepend Init Directive to control global mermaid variables
+    if (themeConfig.config) {
+        const initDirective = `%%{init: ${JSON.stringify(themeConfig.config)} }%%\n`;
+        newCode = initDirective + newCode;
+    }
+
+    // 2. Helper to safely replace classDefs
     const replaceClassDef = (name: string, def: string | null) => {
         if (!def) return;
         // Regex looks for "classDef name ..." until newline or semicolon
@@ -122,10 +184,6 @@ const DiagramRenderer: React.FC<DiagramRendererProps> = ({ code, extraToolbarCon
       if (!code) return;
       
       setError(null);
-      
-      // If code changed significantly (new diagram), we might want to reset view? 
-      // Current behavior: reset view on code change.
-      // But we probably want to keep theme.
       
       try {
         const id = `mermaid-${Date.now()}`;
@@ -357,7 +415,8 @@ const DiagramRenderer: React.FC<DiagramRendererProps> = ({ code, extraToolbarCon
 
       {/* Canvas */}
       <div 
-        className={`flex-1 overflow-hidden bg-[#0d1117] relative custom-grid cursor-grab active:cursor-grabbing ${isDragging ? 'cursor-grabbing' : ''}`}
+        className={`flex-1 overflow-hidden relative custom-grid cursor-grab active:cursor-grabbing ${isDragging ? 'cursor-grabbing' : ''}`}
+        style={{ backgroundColor: currentThemeConfig.bg, transition: 'background-color 0.3s ease' }}
         ref={containerRef}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -409,8 +468,8 @@ const DiagramRenderer: React.FC<DiagramRendererProps> = ({ code, extraToolbarCon
         .custom-grid {
           background-size: 40px 40px;
           background-image:
-            linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            linear-gradient(to right, ${currentThemeConfig.gridColor} 1px, transparent 1px),
+            linear-gradient(to bottom, ${currentThemeConfig.gridColor} 1px, transparent 1px);
         }
         .mermaid text {
             font-family: 'Inter', sans-serif !important;
