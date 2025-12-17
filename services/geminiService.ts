@@ -187,14 +187,38 @@ ${prompt}
     }
 
     // Using gemini-2.5-flash for speed and strong reasoning capabilities
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: finalPrompt,
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        temperature: 0.2, // Low temperature for consistent formatting
-      },
-    });
+    let response;
+    const MAX_RETRIES = 3;
+    const BASE_DELAY = 1000;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: finalPrompt,
+          config: {
+            systemInstruction: SYSTEM_INSTRUCTION,
+            temperature: 0.2, // Low temperature for consistent formatting
+          },
+        });
+        break; // Success
+      } catch (err: any) {
+        // Check for transient errors (503 Service Unavailable, 429 Too Many Requests)
+        const isTransient =
+          err?.status === 503 ||
+          err?.error?.code === 503 ||
+          err?.status === 429 ||
+          err?.error?.code === 429;
+
+        if (isTransient && attempt < MAX_RETRIES) {
+          const delay = BASE_DELAY * Math.pow(2, attempt - 1); // 1s, 2s, 4s
+          console.warn(`Gemini API attempt ${attempt} failed (Status ${err?.status || err?.error?.code}). Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          throw err;
+        }
+      }
+    }
 
     const text = response.text || "";
 
@@ -220,8 +244,18 @@ ${prompt}
       mermaidCode: cleanMermaidCode(mermaidCode)
     };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini API Error:", error);
-    throw new Error("Failed to generate architecture diagram.");
+
+    // Check if it's a 503 error (Service Unavailable / Overloaded) and we haven't retried yet contextually
+    // Note: Simple retry strategy is better implemented inside the main logic loop above, 
+    // but for now, we'll expose the detailed error message to the user.
+    // The previous implementation was throwing a generic error.
+
+    if (error?.status === 503 || error?.error?.code === 503) {
+      throw new Error("Service is currently overloaded (503). Please try again in a few moments.");
+    }
+
+    throw new Error(`Failed to generate architecture diagram: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
 };
