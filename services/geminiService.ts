@@ -53,9 +53,13 @@ Design highly **organized**, **readable**, and **professional** system architect
 \`\`\`mermaid
 graph TD
     %% Global styling
-    classDef plain fill:#fff,stroke:#333,stroke-width:1px;
-    classDef db fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
-    classDef queue fill:#fff3e0,stroke:#e65100,stroke-width:2px;
+    %% Define classes with explicit text colors (color field)
+    classDef client fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#451a03;
+    classDef service fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0c4a6e;
+    classDef db fill:#f0fdf4,stroke:#16a34a,stroke-width:2px,color:#14532d;
+    classDef queue fill:#f3e8ff,stroke:#9333ea,stroke-width:2px,color:#581c87;
+    classDef input fill:#ffedd5,stroke:#ea580c,stroke-width:2px,color:#7c2d12;
+    classDef plain fill:#fff,stroke:#333,stroke-width:1px,color:#000;
 
     %% Actors
     User(["User"])
@@ -85,6 +89,9 @@ graph TD
         OrderDB[("Order DB")]
         Cache[("Redis Cache")]
     end
+    
+    %% Async Messaging
+    Queue{{"Order Queue"}}
 
     %% Connections - Logical Flow Top to Bottom
     User --> App
@@ -97,7 +104,8 @@ graph TD
     Gateway --> Pay
     
     %% Service communication
-    Order -- "Async Events" --> Pay
+    Order -- "Async Events" --> Queue
+    Queue --> Pay
     
     %% Data Access
     Auth --> UserDB
@@ -105,8 +113,11 @@ graph TD
     Pay --> OrderDB
     Auth --> Cache
     
-    %% Class assignments
+    %% Class assignments - CRITICAL: Assign classes to ALL nodes based on type
+    class App,Mobile client;
+    class LB,Gateway,Auth,Order,Pay service;
     class UserDB,OrderDB,Cache db;
+    class Queue queue;
 \`\`\`
 `;
 
@@ -116,7 +127,7 @@ const cleanMermaidCode = (code: string): string => {
     .map(line => {
       // If the line is purely a comment (starts with %% optionally preceded by whitespace), keep it.
       if (/^\s*%%/.test(line)) return line;
-      
+
       // If the line has an inline comment (%% somewhere in the middle), strip it to avoid parser errors.
       const commentIdx = line.indexOf('%%');
       if (commentIdx !== -1) {
@@ -141,17 +152,20 @@ const cleanMermaidCode = (code: string): string => {
   // \] - literal ]
   // The goal is to catch [/ Text (With Parens) /] where quotes are missing
   cleaned = cleaned.replace(/\[\/([^"\]\n]*?\([^\n]*?\)[^"\]\n]*?)\/\]/g, '[/"$1"/]');
-  
+
   return cleaned;
 };
 
 export const generateArchitecture = async (prompt: string, repoContext?: string): Promise<GenerateArchitectureResponse> => {
   try {
+    if (!process.env.API_KEY) {
+      throw new Error("Gemini API Key is missing. Please properly set GEMINI_API_KEY in your .env file.");
+    }
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    
+
     let finalPrompt = prompt;
     if (repoContext) {
-        finalPrompt = `
+      finalPrompt = `
 **CONTEXT: GITHUB REPOSITORY ANALYSIS**
 The user has provided a GitHub repository. Use the following file structure, readme summary, and dependency information to infer the architecture.
 Identify the key frameworks, databases, and architectural patterns (e.g., MVC, Microservices, Serverless) used in this project.
@@ -174,10 +188,10 @@ ${prompt}
     });
 
     const text = response.text || "";
-    
+
     // Parse the response to separate explanation and code
     const mermaidMatch = text.match(/```mermaid([\s\S]*?)```/);
-    
+
     let mermaidCode = "";
     let explanation = text;
 
@@ -189,7 +203,7 @@ ${prompt}
 
     // Fallback: Check if the text is just code without backticks
     if (!mermaidCode && (text.includes("graph ") || text.includes("sequenceDiagram") || text.includes("subgraph "))) {
-        mermaidCode = text;
+      mermaidCode = text;
     }
 
     return {
