@@ -146,6 +146,11 @@ const DiagramRenderer: React.FC<DiagramRendererProps> = ({ code, extraToolbarCon
       startOnLoad: false,
       theme: 'base',
       securityLevel: 'loose',
+      flowchart: {
+        nodeSpacing: 50,
+        rankSpacing: 80,
+        curve: 'basis' // smoother lines
+      }
     });
   }, []);
 
