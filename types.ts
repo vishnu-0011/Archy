@@ -9,12 +9,22 @@ export interface Message {
   sender: Sender;
   timestamp: number;
   diagramCode?: string; // If the message contains a diagram
+  nodeDetails?: NodeDetail[];
   isError?: boolean;
+}
+
+export interface NodeDetail {
+  id: string;
+  label: string;
+  description: string;
+  technologies: string[];
+  relatedComponents: string[];
 }
 
 export interface GenerateArchitectureResponse {
   explanation: string;
   mermaidCode: string;
+  nodeDetails: NodeDetail[];
 }
 
 export interface DiagramState {
@@ -26,6 +36,20 @@ export interface DiagramState {
 export interface DiagramVersion {
   id: string;
   code: string;
+  nodeDetails: NodeDetail[];
   timestamp: number;
   prompt: string;
+}
+
+export interface GitHubConfig {
+  token?: string;
+}
+
+export interface RepositoryMetadata {
+  owner: string;
+  repo: string;
+  description?: string;
+  stars?: number;
+  forks?: number;
+  topLanguages?: string;
 }
