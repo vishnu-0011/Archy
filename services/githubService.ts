@@ -30,17 +30,20 @@ export const fetchRepoContext = async (url: string, token?: string): Promise<Rep
   if (!meta) throw new Error("Invalid GitHub URL or format (use 'owner/repo' or full URL)");
   const { owner, repo } = meta;
 
-  const headers: HeadersInit = {
+  const apiHeaders: HeadersInit = {
     'Accept': 'application/vnd.github.v3+json',
   };
   
   if (token) {
-    headers['Authorization'] = `token ${token}`;
+    apiHeaders['Authorization'] = `token ${token}`;
   }
+
+  // Simple headers for raw content fetches to avoid CORS preflight issues with custom Accept headers
+  const rawHeaders: HeadersInit = token ? { 'Authorization': `token ${token}` } : {};
 
   try {
     // 1. Fetch Basic Info
-    const repoResponse = await fetch(`${GITHUB_API_BASE}/${owner}/${repo}`, { headers });
+    const repoResponse = await fetch(`${GITHUB_API_BASE}/${owner}/${repo}`, { headers: apiHeaders });
     if (!repoResponse.ok) {
         if (repoResponse.status === 404) throw new Error("Repository not found or is private. Provide a Personal Access Token in settings if it's private.");
         if (repoResponse.status === 403) throw new Error("GitHub API Rate limit exceeded. Please provide a Personal Access Token in settings.");
@@ -48,13 +51,19 @@ export const fetchRepoContext = async (url: string, token?: string): Promise<Rep
     }
     const repoData = await repoResponse.json();
 
-    // 2. Fetch Languages
-    const langResponse = await fetch(`${GITHUB_API_BASE}/${owner}/${repo}/languages`, { headers });
-    const languages = await langResponse.json();
-    const topLanguages = Object.keys(languages).slice(0, 5).join(", ");
+    // 2. Fetch Languages (Non-critical, wrap in silent catch)
+    let topLanguages = "Unknown";
+    try {
+        const langResponse = await fetch(`${GITHUB_API_BASE}/${owner}/${repo}/languages`, { headers: apiHeaders });
+        if (langResponse.ok) {
+            const languages = await langResponse.json();
+            topLanguages = Object.keys(languages).slice(0, 5).join(", ");
+        }
+    } catch (e) { console.warn("Failed to fetch languages", e); }
 
-    // 3. Fetch Root Contents (Recursive for better depth if possible, but keep it light)
-    const contentsResponse = await fetch(`${GITHUB_API_BASE}/${owner}/${repo}/contents`, { headers });
+    // 3. Fetch Root Contents
+    const contentsResponse = await fetch(`${GITHUB_API_BASE}/${owner}/${repo}/contents`, { headers: apiHeaders });
+    if (!contentsResponse.ok) throw new Error("Could not fetch repository contents.");
     const contents = await contentsResponse.json();
     
     let readmeContent = "";
@@ -64,12 +73,19 @@ export const fetchRepoContext = async (url: string, token?: string): Promise<Rep
     if (Array.isArray(contents)) {
       structure = contents.map((item: any) => `- ${item.name} (${item.type})`).join("\n");
 
-      // Try to find README
+      // Try to find README (Granular try/catch to prevent total failure on CORS/Network issues)
       const readme = contents.find((f: any) => f.name.toLowerCase().startsWith("readme"));
       if (readme && readme.download_url) {
-        const r = await fetch(readme.download_url, { headers });
-        const text = await r.text();
-        readmeContent = text.slice(0, 5000); // Limit size
+        try {
+            const r = await fetch(readme.download_url, { headers: rawHeaders });
+            if (r.ok) {
+                const text = await r.text();
+                readmeContent = text.slice(0, 5000); 
+            }
+        } catch (e) {
+            console.warn("Failed to fetch README content:", e);
+            readmeContent = "[README content unavailable due to fetch error]";
+        }
       }
 
       // Try to find Dependency Files
@@ -77,8 +93,16 @@ export const fetchRepoContext = async (url: string, token?: string): Promise<Rep
       const depFile = contents.find((f: any) => depFiles.includes(f.name));
       
       if (depFile && depFile.download_url) {
-        const d = await fetch(depFile.download_url, { headers });
-        dependencyFileContent = await d.text();
+        try {
+            const d = await fetch(depFile.download_url, { headers: rawHeaders });
+            if (d.ok) {
+                const content = await d.text();
+                dependencyFileContent = content.slice(0, 1500);
+            }
+        } catch (e) {
+            console.warn("Failed to fetch dependency file:", e);
+            dependencyFileContent = "[Dependency file unavailable due to fetch error]";
+        }
       }
     }
 
@@ -91,8 +115,8 @@ Stars: ${repoData.stargazers_count} | Forks: ${repoData.forks_count}
 File Structure (Root):
 ${structure}
 
-Primary Dependency File (${owner}/${repo}):
-${dependencyFileContent.slice(0, 1500)}
+Primary Dependency Context:
+${dependencyFileContent}
 
 README Content (Context):
 ${readmeContent}
@@ -101,7 +125,11 @@ ${readmeContent}
     return { owner, repo, summary };
 
   } catch (error: any) {
-    console.error("GitHub Fetch Error:", error);
+    console.error("GitHub Fetch Error Details:", error);
+    // Re-throw with a more user-friendly message if it's a generic "Failed to fetch"
+    if (error.message === "Failed to fetch") {
+        throw new Error("Network error: Could not connect to GitHub. This may be due to CORS restrictions or your internet connection.");
+    }
     throw error;
   }
 };
