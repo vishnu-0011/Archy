@@ -7,17 +7,20 @@ You are **ArchMind**, an elite AI Solutions Architect specializing in **Deep Age
 **OBJECTIVE:**
 Create HIGH-GRANULARITY, organized technical architecture diagrams. Your goal is maximum legibility and zero visual "clash".
 
-**STRICT LAYERING & FLOW RULES:**
-1. **Vertical Hierarchy**: Use \`flowchart TD\`. The data should flow strictly from top (Interface) to bottom (Data/Storage).
-2. **Internal Directions**: Inside each \`subgraph\`, explicitly state \`direction TB\` for sequential steps or \`direction LR\` for parallel tools/services to keep them aligned.
-3. **Containment**: Every single node MUST reside inside a logical \`subgraph\`.
-4. **Logical Separation**: 
-   - Layer 1: [Interface/User Layer]
-   - Layer 2: [Orchestration/Control Plane] (LangChain chains, routers)
-   - Layer 3: [Intelligence/Agent Core] (LLM, prompt handlers, state)
-   - Layer 4: [Execution/Tool Layer] (Parallel tools, APIs)
-   - Layer 5: [Persistence/Data Layer] (Vector DBs, SQL, Cache)
-5. **Connection Cleanliness**: Minimize long-distance connections that cross more than two layers. Use intermediate nodes (like "Gateways" or "Dispatchers") if a flow needs to span the whole diagram.
+**STRICT LAYERING & FLOW RULES - HORIZONTAL FLOW (MATCHING AWS/CLOUD STANDARD):**
+1. **Global Horizontal Flow**: Use \`flowchart LR\`. The flow must traverse strictly Left-to-Right.
+   - **Left**: Users / Clients / Edge Devices
+   - **Center-Left**: Interface / Gateways / Load Balancers
+   - **Center-Right**: Application Logic / Microservices / Processing
+   - **Right**: Data Storage / Analytics / External Services
+2. **Subgraph Stewardship**: 
+   - Group related nodes logically (e.g., "Public Subnet", "Service Layer", "VPC").
+   - Use \`direction TB\` inside small subgraphs if needed to stack items vertically within a column, but keep the overall flow LR.
+3. **Structured Alignment**: Ensure all nodes of a similar type (e.g., all databases) appear roughly in the same vertical plane (column).
+4. **Connection Hygiene**:
+   - Arrows travel Left->Right. 
+   - Avoid "backwards" arrows (Right->Left) for main data flow; use dotted lines \`-.->\` for feedback loops.
+   - Use intermediate nodes for clean routing if spanning the entire diagram.
 
 **STRICT SYNTAX RULES:**
 - NEVER leave a dangling arrow at the end of a line (e.g., "A --> B -->" is invalid).
@@ -34,6 +37,12 @@ Create HIGH-GRANULARITY, organized technical architecture diagrams. Your goal is
   - 'logic': AI Models/Agents.
   - 'edge': External APIs.
 
+**ICONS & STYLING:**
+- You MAY use FontAwesome icons in node labels to enhance visual appeal.
+- Format: \`id["fa:fa-icon-name Label Text"]\`
+- Examples: \`fa:fa-database\`, \`fa:fa-server\`, \`fa:fa-brain\`, \`fa:fa-cloud\`, \`fa:fa-bolt\`, \`fa:fa-users\`.
+
+
 **OUTPUT:**
 Return a JSON object with:
 - "explanation": Deep technical reasoning.
@@ -43,48 +52,54 @@ Return a JSON object with:
 
 const cleanMermaidCode = (code: string): string => {
   let lines = code.split('\n');
-  
+
   let cleaned = lines
     .map(line => {
       let processed = line.trim();
-      
+
       // Ignore comments
       if (processed.startsWith('%%')) return processed;
 
       // 1. Remove dangling arrows at the end of lines (e.g., A --> B -->)
-      processed = processed.replace(/(-{2,}>|->)\s*$/, '');
+      // Matches -->, ---, -.->, ==> and variations, including labels like |text|
+      processed = processed.replace(/\s*(-{2,}>?|\.-+>|={2,}>)(?:\|[^|]+\|)?\s*$/, '');
 
       // 2. Remove trailing natural language descriptions after node shapes
-      // Matches things like node[...] description or node(...) : text
-      processed = processed.replace(/(\]|\)|\}|>)\s*[:\-\s]+.*$/, '$1');
+      // Strict: Only remove if follows ' :' or ' - ' AND does not look like an arrow
+      // Matches: node[...] : description
+      processed = processed.replace(/(\]|\)|\}|>)\s*:\s+[^;]*$/, '$1');
+
+      // Matches: node[...] - description (BUT NOT node[...] --> node)
+      // We look for " - " that is NOT followed by ">" or part of "->"
+      processed = processed.replace(/(\]|\)|\}|>)\s+-\s+(?!>|.*>).*$/, '$1');
 
       // 3. Remove trailing text after class assignments
       // Matches node:::class Description -> node:::class
-      processed = processed.replace(/(:::[a-zA-Z0-9_-]+)\s+.*$/, '$1');
+      processed = processed.replace(/(:::[a-zA-Z0-9_-]+)\s+(?![-=.>]).*$/, '$1');
 
       // 4. Remove trailing colons that AI likes to add as annotations
       processed = processed.replace(/:\s*$/, '');
-      
+
       return processed;
     })
     .filter(line => line.length > 0)
-    // Filter out lines that are now just arrows (though rare after first regex)
-    .filter(line => !/^(-{2,}>|->)$/.test(line.trim()))
+    // Filter out lines that are now just arrows
+    .filter(line => !/^(\s*(-{2,}>?|\.-+>|={2,}>)(?:\|[^|]+\|)?\s*)$/.test(line.trim()))
     .join('\n');
 
-  // Ensure flowchart TD
-  cleaned = cleaned.replace(/graph\s+(LR|RL|BT|TD)/g, 'flowchart TD');
-  cleaned = cleaned.replace(/flowchart\s+(LR|RL|BT)/g, 'flowchart TD');
-  
-  if (!cleaned.trim().startsWith('flowchart TD')) {
-    cleaned = 'flowchart TD\n' + cleaned.replace(/^flowchart\s+TD\s*/, '');
+  // Ensure flowchart LR
+  cleaned = cleaned.replace(/graph\s+(LR|RL|BT|TD)/g, 'flowchart LR');
+  cleaned = cleaned.replace(/flowchart\s+(LR|RL|BT|TD)/g, 'flowchart LR');
+
+  if (!cleaned.trim().startsWith('flowchart LR')) {
+    cleaned = 'flowchart LR\n' + cleaned.replace(/^flowchart\s+(TD|LR|BT|RL)\s*/, '');
   }
 
   const normalizeLabel = (label: string) => {
     let content = label.trim().replace(/^"(.*)"$/, '$1').trim();
-    // Remove any internal trailing colons in labels
-    content = content.split(':')[0].trim();
-    content = content.replace(/"/g, "'"); 
+    // Allow colons for icons (fa:fa-icon) and general text. 
+    // Only remove quotes which are re-added at the end.
+    content = content.replace(/"/g, "'");
     return `"${content}"`;
   };
 
@@ -93,7 +108,7 @@ const cleanMermaidCode = (code: string): string => {
   cleaned = cleaned.replace(/\(\[\s*(.*?)\s*\]\)/g, (_, c) => `([${normalizeLabel(c)}])`);
   cleaned = cleaned.replace(/\[\(\s*(.*?)\s*\)\]/g, (_, c) => `[(${normalizeLabel(c)})]`);
   cleaned = cleaned.replace(/\{\{\s*(.*?)\s*\}\}/g, (_, c) => `{{${normalizeLabel(c)}}}`);
-  
+
   // Clean basic square brackets while avoiding keywords
   cleaned = cleaned.replace(/([a-zA-Z0-9_-]+)\[\s*([^"\]\n]*?)\s*\]/g, (match, id, content) => {
     const lowerId = id.toLowerCase();
@@ -106,11 +121,11 @@ const cleanMermaidCode = (code: string): string => {
 
 export const generateArchitecture = async (prompt: string, repoContext?: string): Promise<GenerateArchitectureResponse> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
     let finalPrompt = prompt;
     if (repoContext) {
-        finalPrompt = `
+      finalPrompt = `
 **CONTEXT: GITHUB REPOSITORY ANALYSIS**
 ${repoContext}
 
@@ -120,11 +135,11 @@ ${prompt}
 Synthesize a highly organized, layered architecture. Ensure subgraphs have internal 'direction' statements.
         `;
     } else {
-        finalPrompt = `${prompt}\n\nProvide an extremely detailed, logically grouped diagram using subgraphs for each system layer. Focus on clear, non-overlapping flow. Ensure EVERY node is assigned a class from the set: plain, db, queue, logic, edge.`;
+      finalPrompt = `${prompt}\n\nProvide an extremely detailed, logically grouped diagram using subgraphs for each system layer. Focus on clear, non-overlapping flow. Ensure EVERY node is assigned a class from the set: plain, db, queue, logic, edge.`;
     }
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-2.5-flash',
       contents: finalPrompt,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
@@ -157,7 +172,7 @@ Synthesize a highly organized, layered architecture. Ensure subgraphs have inter
 
     const text = response.text || "{}";
     const result = JSON.parse(text);
-    
+
     return {
       explanation: result.explanation || "",
       mermaidCode: cleanMermaidCode(result.mermaidCode || ""),
