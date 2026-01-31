@@ -1,186 +1,143 @@
-import { GoogleGenAI, Type } from "@google/genai";
-import { GenerateArchitectureResponse, NodeDetail } from "../types";
+import { GoogleGenAI } from "@google/genai";
+import { GenerateArchitectureResponse } from "../types";
 
 const SYSTEM_INSTRUCTION = `
-You are **ArchMind**, an elite AI Solutions Architect specializing in **Deep Agent Frameworks (AutoGPT, BabyAGI)** and **LangChain/LangGraph Orchestration**.
+You are **ArchMind**, an autonomous AI Solutions Architect modeled after a "Deep Agent" reasoning framework.
 
 **OBJECTIVE:**
-Create HIGH-GRANULARITY, organized technical architecture diagrams. Your goal is maximum legibility and zero visual "clash".
+Design highly **organized**, **readable**, and **professional** system architecture diagrams using Mermaid.js.
 
-**STRICT LAYERING & FLOW RULES - HORIZONTAL FLOW (MATCHING AWS/CLOUD STANDARD):**
-1. **Global Horizontal Flow**: Use \`flowchart LR\`. The flow must traverse strictly Left-to-Right.
-   - **Left**: Users / Clients / Edge Devices
-   - **Center-Left**: Interface / Gateways / Load Balancers
-   - **Center-Right**: Application Logic / Microservices / Processing
-   - **Right**: Data Storage / Analytics / External Services
-2. **Subgraph Stewardship**: 
-   - Group related nodes logically (e.g., "Public Subnet", "Service Layer", "VPC").
-   - Use \`direction TB\` inside small subgraphs if needed to stack items vertically within a column, but keep the overall flow LR.
-3. **Structured Alignment**: Ensure all nodes of a similar type (e.g., all databases) appear roughly in the same vertical plane (column).
-4. **Connection Hygiene**:
-   - Arrows travel Left->Right. 
-   - Avoid "backwards" arrows (Right->Left) for main data flow; use dotted lines \`-.->\` for feedback loops.
-   - Use intermediate nodes for clean routing if spanning the entire diagram.
+**CRITICAL PRIORITY: VISUAL CLARITY & SYNTAX SAFETY**
+1.  **Layout Direction**: **ALWAYS** use \`graph TB\` (Top-to-Bottom).
+2.  **Strict Verticality**: Ensure all data flows strictly from Top to Bottom.
+3.  **No Nesting**: **DO NOT NEST SUBGRAPHS**. Flatten the hierarchy.
 
-**STRICT SYNTAX RULES:**
-- NEVER leave a dangling arrow at the end of a line (e.g., "A --> B -->" is invalid).
-- NEVER use colons (\`:\`) outside of quoted strings.
-- NEVER append text after a node definition like "nodeId[Label] ::: class - Description".
-- A line must end immediately after the node shape or the class assignment (e.g., \`nodeId["Label"]:::plain\`).
-- Use \`%%\` for comments on separate lines.
+**OUTPUT FORMAT (STRICT JSON):**
+You MUST return a VALID JSON object with the following structure. Do not return plain markdown.
+\`\`\`json
+{
+  "strategic_overview": "A concise explanation (3-4 sentences)...",
+  "mermaid_code": "graph TB\\n...",
+  "node_descriptions": {
+    "NodeID": "Detailed description of this component's role...",
+    "User": "The end user accessing the application..."
+  }
+}
+\`\`\`
 
-**VISUAL CLASSES:**
-- Use classDef:
-  - 'plain': Standard services.
-  - 'db': Databases/Vector Stores.
-  - 'queue': Message brokers.
-  - 'logic': AI Models/Agents.
-  - 'edge': External APIs.
+**MERMAID SYNTAX RULES:**
+1.  **Node IDs**: Use simple alphanumeric IDs (e.g., \`AuthService\`, \`UserDB\`).
+2.  **Labels**: ALWAYS quote labels: \`id["Label"]\`.
+3.  **No Comments**: Do not include comments in the mermaid string.
 
-**ICONS & STYLING:**
-- You MAY use FontAwesome icons in node labels to enhance visual appeal.
-- Format: \`id["fa:fa-icon-name Label Text"]\`
-- Examples: \`fa:fa-database\`, \`fa:fa-server\`, \`fa:fa-brain\`, \`fa:fa-cloud\`, \`fa:fa-bolt\`, \`fa:fa-users\`.
-
-
-**OUTPUT:**
-Return a JSON object with:
-- "explanation": Deep technical reasoning.
-- "mermaidCode": The Mermaid flowchart code.
-- "nodeDetails": Metadata for EVERY node.
+**EXAMPLE JSON OUTPUT:**
+\`\`\`json
+{
+  "strategic_overview": "This architecture uses a microservices pattern...",
+  "mermaid_code": "graph TB\\n  Client --> API",
+  "node_descriptions": {
+    "Client": "React-based frontend application.",
+    "API": "Node.js API Gateway handling requests."
+  }
+}
+\`\`\`
 `;
 
 const cleanMermaidCode = (code: string): string => {
-  let lines = code.split('\n');
+  let cleaned = code;
+  // Fix unquoted parallelogram labels containing parentheses: [/Label (Text)/] -> [/"Label (Text)"/]
+  cleaned = cleaned.replace(/\[\/([^"\]\n]*?\([^\n]*?\)[^"\]\n]*?)\/\]/g, '[/"$1"/]');
 
-  let cleaned = lines
-    .map(line => {
-      let processed = line.trim();
-
-      // Ignore comments
-      if (processed.startsWith('%%')) return processed;
-
-      // 1. Remove dangling arrows at the end of lines (e.g., A --> B -->)
-      // Matches -->, ---, -.->, ==> and variations, including labels like |text|
-      processed = processed.replace(/\s*(-{2,}>?|\.-+>|={2,}>)(?:\|[^|]+\|)?\s*$/, '');
-
-      // 2. Remove trailing natural language descriptions after node shapes
-      // Strict: Only remove if follows ' :' or ' - ' AND does not look like an arrow
-      // Matches: node[...] : description
-      processed = processed.replace(/(\]|\)|\}|>)\s*:\s+[^;]*$/, '$1');
-
-      // Matches: node[...] - description (BUT NOT node[...] --> node)
-      // We look for " - " that is NOT followed by ">" or part of "->"
-      processed = processed.replace(/(\]|\)|\}|>)\s+-\s+(?!>|.*>).*$/, '$1');
-
-      // 3. Remove trailing text after class assignments
-      // Matches node:::class Description -> node:::class
-      processed = processed.replace(/(:::[a-zA-Z0-9_-]+)\s+(?![-=.>]).*$/, '$1');
-
-      // 4. Remove trailing colons that AI likes to add as annotations
-      processed = processed.replace(/:\s*$/, '');
-
-      return processed;
-    })
-    .filter(line => line.length > 0)
-    // Filter out lines that are now just arrows
-    .filter(line => !/^(\s*(-{2,}>?|\.-+>|={2,}>)(?:\|[^|]+\|)?\s*)$/.test(line.trim()))
-    .join('\n');
-
-  // Ensure flowchart LR
-  cleaned = cleaned.replace(/graph\s+(LR|RL|BT|TD)/g, 'flowchart LR');
-  cleaned = cleaned.replace(/flowchart\s+(LR|RL|BT|TD)/g, 'flowchart LR');
-
-  if (!cleaned.trim().startsWith('flowchart LR')) {
-    cleaned = 'flowchart LR\n' + cleaned.replace(/^flowchart\s+(TD|LR|BT|RL)\s*/, '');
-  }
-
-  const normalizeLabel = (label: string) => {
-    let content = label.trim().replace(/^"(.*)"$/, '$1').trim();
-    // Allow colons for icons (fa:fa-icon) and general text. 
-    // Only remove quotes which are re-added at the end.
-    content = content.replace(/"/g, "'");
-    return `"${content}"`;
-  };
-
-  // Ensure shapes and labels are quoted and clean
-  cleaned = cleaned.replace(/\[\/\s*(.*?)\s*\/\]/g, (_, c) => `[/${normalizeLabel(c)}/]`);
-  cleaned = cleaned.replace(/\(\[\s*(.*?)\s*\]\)/g, (_, c) => `([${normalizeLabel(c)}])`);
-  cleaned = cleaned.replace(/\[\(\s*(.*?)\s*\)\]/g, (_, c) => `[(${normalizeLabel(c)})]`);
-  cleaned = cleaned.replace(/\{\{\s*(.*?)\s*\}\}/g, (_, c) => `{{${normalizeLabel(c)}}}`);
-
-  // Clean basic square brackets while avoiding keywords
-  cleaned = cleaned.replace(/([a-zA-Z0-9_-]+)\[\s*([^"\]\n]*?)\s*\]/g, (match, id, content) => {
-    const lowerId = id.toLowerCase();
-    if (['subgraph', 'class', 'click', 'style', 'classdef', 'direction'].includes(lowerId)) return match;
-    return `${id}[${normalizeLabel(content)}]`;
-  });
+  // Replace HTML entities
+  cleaned = cleaned.replace(/&gt;/g, '>');
+  cleaned = cleaned.replace(/&lt;/g, '<');
+  cleaned = cleaned.replace(/&amp;/g, '&'); // Be careful with this one, might break things if not in label
 
   return cleaned;
 };
 
 export const generateArchitecture = async (prompt: string, repoContext?: string): Promise<GenerateArchitectureResponse> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    if (!process.env.API_KEY) {
+      throw new Error("Gemini API Key is missing. Please properly set GEMINI_API_KEY in your .env file.");
+    }
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     let finalPrompt = prompt;
     if (repoContext) {
       finalPrompt = `
 **CONTEXT: GITHUB REPOSITORY ANALYSIS**
+The user has provided a GitHub repository. Use the following file structure, readme summary, and dependency information to infer the architecture.
+Identify the key frameworks, databases, and architectural patterns (e.g., MVC, Microservices, Serverless) used in this project.
+
 ${repoContext}
 
 **USER REQUEST:**
 ${prompt}
-
-Synthesize a highly organized, layered architecture. Ensure subgraphs have internal 'direction' statements.
         `;
-    } else {
-      finalPrompt = `${prompt}\n\nProvide an extremely detailed, logically grouped diagram using subgraphs for each system layer. Focus on clear, non-overlapping flow. Ensure EVERY node is assigned a class from the set: plain, db, queue, logic, edge.`;
     }
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: finalPrompt,
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            explanation: { type: Type.STRING },
-            mermaidCode: { type: Type.STRING },
-            nodeDetails: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  id: { type: Type.STRING },
-                  label: { type: Type.STRING },
-                  description: { type: Type.STRING },
-                  technologies: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  relatedComponents: { type: Type.ARRAY, items: { type: Type.STRING } }
-                },
-                required: ["id", "label", "description"]
-              }
-            }
-          },
-          required: ["explanation", "mermaidCode", "nodeDetails"]
-        },
-        temperature: 0.1,
-      },
-    });
+    // Using gemini-1.5-flash for speed and reliability (2.0-flash-lite was causing issues)
+    let response;
+    const MAX_RETRIES = 3;
+    const BASE_DELAY = 1000;
 
-    const text = response.text || "{}";
-    const result = JSON.parse(text);
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash-lite',
+          contents: finalPrompt,
+          config: {
+            systemInstruction: SYSTEM_INSTRUCTION,
+            temperature: 0.2,
+            responseMimeType: "application/json",
+          },
+        });
+        break; // Success
+      } catch (err: any) {
+        // Retrying logic...
+        const isTransient =
+          err?.status === 503 ||
+          err?.error?.code === 503 ||
+          err?.status === 429 ||
+          err?.error?.code === 429;
+
+        if (isTransient && attempt < MAX_RETRIES) {
+          const delay = BASE_DELAY * Math.pow(2, attempt - 1);
+          console.warn(`Gemini API attempt ${attempt} failed (Status ${err?.status || err?.error?.code}). Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    const text = response.text || "";
+    let data;
+    try {
+      // Clean up markdown block if present
+      const jsonString = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      data = JSON.parse(jsonString);
+    } catch (e) {
+      console.error("Failed to parse JSON response:", text);
+      // Fallback
+      return {
+        explanation: "Error parsing AI response. The raw output is shown below.",
+        mermaidCode: cleanMermaidCode(text)
+      };
+    }
 
     return {
-      explanation: result.explanation || "",
-      mermaidCode: cleanMermaidCode(result.mermaidCode || ""),
-      nodeDetails: result.nodeDetails || []
+      explanation: data.strategic_overview || "No explanation provided.",
+      mermaidCode: cleanMermaidCode(data.mermaid_code || ""),
+      nodeDescriptions: data.node_descriptions || {}
     };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini API Error:", error);
-    throw new Error("Failed to generate architecture diagram.");
+    if (error?.status === 503 || error?.error?.code === 503) {
+      throw new Error("Service is currently overloaded (503). Please try again in a few moments.");
+    }
+    throw new Error(`Failed to generate architecture diagram: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
 };
