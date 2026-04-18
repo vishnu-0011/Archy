@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
-import { GenerateArchitectureResponse } from "../types";
-import { getMermaidImageUrl } from "../utils/mermaidUtils";
+import { GenerateArchitectureResponse } from "../types.js";
+import { getMermaidImageUrl } from "../utils/mermaidUtils.js";
 
 const SYSTEM_INSTRUCTION = `
 You are **ArchMind**, an autonomous AI Solutions Architect modeled after a "Deep Agent" reasoning framework.

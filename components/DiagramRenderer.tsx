@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import mermaid from 'mermaid';
 import { ZoomIn, ZoomOut, RotateCcw, Keyboard, Download, Palette, Check } from 'lucide-react';
 
-import { LayeredDiagram, DiagramElement } from '../types';
+import { LayeredDiagram, DiagramElement } from '../mcp-server/src/types';
 
 interface DiagramRendererProps {
   code?: string; // Raw Mermaid code (legacy)

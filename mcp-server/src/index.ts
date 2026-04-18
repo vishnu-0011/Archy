@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -14,8 +15,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 // Import existing services
-import { generateArchitecture } from "../services/geminiService.js";
-import { fetchRepoContext } from "../services/githubService.js";
+import { generateArchitecture } from "./services/geminiService.js";
+import { fetchRepoContext } from "./services/githubService.js";
 
 const server = new Server(
   {

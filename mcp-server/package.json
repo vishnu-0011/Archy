@@ -1,13 +1,19 @@
 {
-  "name": "archy-mcp-server",
+  "name": "archmind-mcp",
   "version": "1.0.0",
-  "description": "MCP server for ArchMind architecture generator",
+  "description": "autonomous AI Solutions Architect as an MCP server",
   "main": "dist/index.js",
   "type": "module",
+  "bin": {
+    "archmind": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "tsx index.ts"
+    "dev": "tsx src/index.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.6.0",
