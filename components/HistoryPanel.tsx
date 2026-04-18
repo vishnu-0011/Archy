@@ -1,5 +1,5 @@
 import React from 'react';
-import { DiagramVersion } from '../types';
+import { DiagramVersion } from '../mcp-server/src/types';
 import { Clock, ChevronRight, Check } from 'lucide-react';
 
 interface HistoryPanelProps {

@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import ChatInterface from './components/ChatInterface';
 import DiagramRenderer from './components/DiagramRenderer';
 import HistoryPanel from './components/HistoryPanel';
-import { generateArchitecture } from './services/geminiService';
-import { fetchRepoContext, parseGitHubUrl } from './services/githubService';
-import { Message, Sender, DiagramVersion } from './types';
+import { generateArchitecture } from './mcp-server/src/services/geminiService';
+import { fetchRepoContext, parseGitHubUrl } from './mcp-server/src/services/githubService';
+import { Message, Sender, DiagramVersion } from './mcp-server/src/types';
 import { Minimize2, Terminal, History } from 'lucide-react';
 
 const App: React.FC = () => {

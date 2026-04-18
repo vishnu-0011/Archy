@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Message, Sender } from '../types';
+import { Message, Sender } from '../mcp-server/src/types';
 import { Send, Bot, User, Code, Layers, Github, X, Settings2, ShieldCheck, ShieldAlert, Sparkles, Cpu, Search, Workflow, ExternalLink, Image as ImageIcon } from 'lucide-react';
 
 interface ChatInterfaceProps {

@@ -4,15 +4,15 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "outDir": "./dist",
-    "rootDir": "../",
+    "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["../*"]
+      "@/*": ["src/*"]
     }
   },
-  "include": ["./**/*", "../services/**/*", "../types.ts"]
+  "include": ["src/**/*"]
 }
