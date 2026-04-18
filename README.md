@@ -21,6 +21,7 @@
   - **Interactive Node Inspector** for detailed metadata.
 - **💾 Export & Share**: Instantly download high-resolution **PNG** images of your diagrams.
 - **🔗 GitHub Context**: Paste a GitHub repository URL to generate an architecture diagram based on the actual codebase structure.
+- **🔌 MCP Server**: Use ArchMind as a Model Context Protocol (MCP) server to generate diagrams from any MCP-compatible AI agent or IDE.
 
 ## 🛠️ Tech Stack
 
@@ -55,6 +56,39 @@
    npm run dev
    ```
    Open [http://localhost:3004](http://localhost:3004) to view it in the browser.
+
+## 🔌 MCP Server Integration
+
+ArchMind now acts as an **MCP Server**, allowing you to use its architecture generation capabilities directly from your favorite AI tools (like Claude Desktop).
+
+### 1. Run the Server
+From the root directory:
+```bash
+npm run mcp:run
+```
+
+### 2. Available Tools
+- **`generate_architecture`**: Generates a Mermaid.js diagram from a prompt. 
+  - *Args*: `prompt` (string), `repoUrl` (optional string)
+- **`analyze_repo`**: Infers architecture context from a GitHub repository.
+  - *Args*: `url` (string)
+
+### 3. Client Configuration
+To use with Claude Desktop, add this to your `claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "archmind": {
+      "command": "node",
+      "args": ["<path-to-repo>/mcp-server/dist/index.js"],
+      "env": {
+        "GEMINI_API_KEY": "YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
+*(Note: Ensure you run `npm run build` inside `mcp-server/` first to generate the dist directory).*
 
 ## 🎮 Usage
 
