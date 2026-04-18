@@ -9,10 +9,19 @@
  * @returns A URL string pointing to the rendered image.
  */
 export const getMermaidImageUrl = (mermaidCode: string, isDarkMode: boolean = true): string => {
-  // We use Base64 encoding for the mermaid code.
-  // To handle Unicode correctly, we use the encodeURIComponent + escape pattern.
   try {
-    const base64 = btoa(unescape(encodeURIComponent(mermaidCode.trim())));
+    const trimmedCode = mermaidCode.trim();
+    let base64 = "";
+
+    // Environment-agnostic Base64 encoding
+    if (typeof btoa === 'function') {
+      base64 = btoa(unescape(encodeURIComponent(trimmedCode)));
+    } else if (typeof Buffer !== 'undefined') {
+      base64 = Buffer.from(trimmedCode).toString('base64');
+    } else {
+      throw new Error('No Base64 encoding method available');
+    }
+
     const theme = isDarkMode ? 'dark' : 'default';
     return `https://mermaid.ink/img/${base64}?theme=${theme}`;
   } catch (error) {
@@ -20,3 +29,4 @@ export const getMermaidImageUrl = (mermaidCode: string, isDarkMode: boolean = tr
     return '';
   }
 };
+

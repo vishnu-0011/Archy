@@ -58,6 +58,28 @@ const cleanMermaidCode = (code: string): string => {
 };
 
 export const generateArchitecture = async (prompt: string, repoContext?: string, apiKeyOverride?: string): Promise<GenerateArchitectureResponse> => {
+  // 1. If in browser, use Vercel Serverless Function Proxy for security
+  if (typeof window !== 'undefined') {
+    try {
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, repoContext })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate via serverless function');
+      }
+
+      return await response.json();
+    } catch (error: any) {
+      console.error("Proxy Error:", error);
+      throw new Error(`Cloud Generation Failed: ${error.message}`);
+    }
+  }
+
+  // 2. If in Node (MCP Server/Local CLI), use direct API access
   try {
     const apiKey = apiKeyOverride || process.env.GEMINI_API_KEY || process.env.API_KEY;
     
@@ -80,14 +102,14 @@ ${prompt}
         `;
     }
 
-    // Using gemini-1.5-flash for speed and reliability (2.0-flash-lite was causing issues)
+    // Using gemini-2.5-flash-lite for speed and reliability
     let response;
     const MAX_RETRIES = 3;
     const BASE_DELAY = 1000;
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        response = await ai.models.generateContent({
+        const result = await ai.models.generateContent({
           model: 'gemini-2.5-flash-lite',
           contents: finalPrompt,
           config: {
@@ -96,18 +118,12 @@ ${prompt}
             responseMimeType: "application/json",
           },
         });
-        break; // Success
+        response = await result.response;
+        break; 
       } catch (err: any) {
-        // Retrying logic...
-        const isTransient =
-          err?.status === 503 ||
-          err?.error?.code === 503 ||
-          err?.status === 429 ||
-          err?.error?.code === 429;
-
+        const isTransient = err?.status === 503 || err?.status === 429;
         if (isTransient && attempt < MAX_RETRIES) {
           const delay = BASE_DELAY * Math.pow(2, attempt - 1);
-          console.warn(`Gemini API attempt ${attempt} failed (Status ${err?.status || err?.error?.code}). Retrying in ${delay}ms...`);
           await new Promise(resolve => setTimeout(resolve, delay));
         } else {
           throw err;
@@ -115,18 +131,17 @@ ${prompt}
       }
     }
 
-    const text = response.text || "";
+    const text = response ? response.text() : "";
     let data;
     try {
-      // Clean up markdown block if present
       const jsonString = text.replace(/```json/g, '').replace(/```/g, '').trim();
       data = JSON.parse(jsonString);
     } catch (e) {
-      console.error("Failed to parse JSON response:", text);
-      // Fallback
+      const cleaned = cleanMermaidCode(text);
       return {
         explanation: "Error parsing AI response. The raw output is shown below.",
-        mermaidCode: cleanMermaidCode(text)
+        mermaidCode: cleaned,
+        diagramImageUrl: getMermaidImageUrl(cleaned, true)
       };
     }
 
@@ -135,15 +150,12 @@ ${prompt}
     return {
       explanation: data.strategic_overview || "No explanation provided.",
       mermaidCode,
-      diagramImageUrl: getMermaidImageUrl(mermaidCode, true), // Default to dark mode for premium look
+      diagramImageUrl: getMermaidImageUrl(mermaidCode, true),
       nodeDescriptions: data.node_descriptions || {}
     };
 
   } catch (error: any) {
     console.error("Gemini API Error:", error);
-    if (error?.status === 503 || error?.error?.code === 503) {
-      throw new Error("Service is currently overloaded (503). Please try again in a few moments.");
-    }
     throw new Error(`Failed to generate architecture diagram: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
-};
+};
