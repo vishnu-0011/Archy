@@ -22,12 +22,14 @@ export interface Message {
   sender: Sender;
   timestamp: number;
   diagramCode?: string; // If the message contains a diagram
+  diagramImageUrl?: string; // New: Rendered image URL
   isError?: boolean;
 }
 
 export interface GenerateArchitectureResponse {
   explanation: string;
   mermaidCode: string;
+  diagramImageUrl?: string;
   nodeDescriptions?: Record<string, string>;
 }
 
