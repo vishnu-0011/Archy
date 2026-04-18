@@ -9,14 +9,19 @@ import { z } from "zod";
 import * as dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
+import * as fs from "fs";
 
 // Load environment variables from the root .env file
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.resolve(__dirname, "../.env") });
+dotenv.config({ 
+  path: path.resolve(__dirname, "../.env"),
+  quiet: true 
+});
 
 // Import existing services
 import { generateArchitecture } from "./services/geminiService.js";
 import { fetchRepoContext } from "./services/githubService.js";
+import { getMermaidImageBase64 } from "./utils/mermaidUtils.js";
 
 const server = new Server(
   {
@@ -68,6 +73,38 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["url"],
         },
       },
+      {
+        name: "render_mermaid",
+        description: "Renders Mermaid.js code as a PNG image.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            code: {
+              type: "string",
+              description: "The raw Mermaid.js code to render.",
+            },
+          },
+          required: ["code"],
+        },
+      },
+      {
+        name: "save_diagram",
+        description: "Renders Mermaid.js code as a PNG image and saves it to a local file.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            code: {
+              type: "string",
+              description: "The raw Mermaid.js code to render.",
+            },
+            output_path: {
+              type: "string",
+              description: "The local file path where the PNG should be saved (e.g., './diagrams/arch.png').",
+            },
+          },
+          required: ["code", "output_path"],
+        },
+      },
     ],
   };
 });
@@ -98,18 +135,86 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const content: any[] = [
         {
           type: "text",
-          text: `Strategic Overview:\n${result.explanation}\n\nMermaid Code:\n\`\`\`mermaid\n${result.mermaidCode}\n\`\`\``,
+          text: `Strategic Overview:\n${result.explanation}\n\nDesign Rationale:\n${result.designRationale}\n\nMermaid Code:\n\`\`\`mermaid\n${result.mermaidCode}\n\`\`\``,
         },
       ];
 
-      if (result.diagramImageUrl) {
+      // Try to fetch base64 image with the AI-selected theme
+      const imageResult = await getMermaidImageBase64(result.mermaidCode, result.theme as any);
+      if (imageResult) {
+        content.push({
+          type: "image",
+          data: imageResult.data,
+          mimeType: imageResult.mimeType,
+        });
+      } else if (result.diagramImageUrl) {
         content.push({
           type: "text",
-          text: `\nRendered Image URL:\n${result.diagramImageUrl}`,
+          text: `\nRendered Image URL (Fallback):\n${result.diagramImageUrl}`,
         });
       }
 
       return { content };
+    }
+
+    if (name === "render_mermaid") {
+      const { code } = z
+        .object({
+          code: z.string(),
+        })
+        .parse(args);
+
+      const imageResult = await getMermaidImageBase64(code, "dark");
+
+      if (!imageResult) {
+        throw new Error("Failed to render mermaid diagram to image.");
+      }
+
+      return {
+        content: [
+          {
+            type: "image",
+            data: imageResult.data,
+            mimeType: imageResult.mimeType,
+          },
+        ],
+      };
+    }
+
+    if (name === "save_diagram") {
+      const { code, output_path } = z
+        .object({
+          code: z.string(),
+          output_path: z.string(),
+        })
+        .parse(args);
+
+      const imageResult = await getMermaidImageBase64(code, "dark");
+
+      if (!imageResult) {
+        throw new Error("Failed to render mermaid diagram to image.");
+      }
+
+      const absolutePath = path.isAbsolute(output_path)
+        ? output_path
+        : path.resolve(process.cwd(), output_path);
+
+      const dir = path.dirname(absolutePath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+
+      const buffer = Buffer.from(imageResult.data, "base64");
+      fs.writeFileSync(absolutePath, buffer);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Diagram successfully saved to: ${absolutePath}`,
+          },
+        ],
+      };
     }
 
     if (name === "analyze_repo") {
@@ -151,7 +256,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Archy MCP Server running on stdio");
 }
 
 main().catch((error) => {

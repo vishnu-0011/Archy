@@ -1,15 +1,14 @@
+const GITHUB_API_BASE = "https://api.github.com/repos";
+
 interface RepoContext {
   owner: string;
   repo: string;
   summary: string;
 }
 
-const GITHUB_API_BASE = "https://api.github.com/repos";
-
 export const parseGitHubUrl = (url: string): { owner: string; repo: string } | null => {
   try {
     const cleanUrl = url.trim();
-    // Support both full URLs and owner/repo shorthand
     if (cleanUrl.split('/').length === 2 && !cleanUrl.includes('.')) {
         const [owner, repo] = cleanUrl.split('/');
         return { owner, repo };
@@ -25,111 +24,125 @@ export const parseGitHubUrl = (url: string): { owner: string; repo: string } | n
   }
 };
 
+/**
+ * Intelligent filter to find "architectural" files in a large tree.
+ * Prioritizes entry points, services, controllers, and core logic.
+ */
+const getInterestingFiles = (tree: any[]): string[] => {
+  const coreExtensions = ['.ts', '.js', '.dart', '.go', '.py', '.java', '.kt', '.rs'];
+  const excludeFolders = ['node_modules', '.git', 'dist', 'build', 'ios', 'android', 'test', 'tests'];
+
+  const filteredTree = tree.filter(item => {
+    if (item.type !== 'blob') return false;
+    const path = item.path.toLowerCase();
+    
+    // Ignore boilerplate/dist/test folders
+    if (excludeFolders.some(folder => path.includes(`/${folder}/`) || path.startsWith(`${folder}/`))) return false;
+
+    // Look for architectural keywords
+    const isArchitectural = 
+        path.includes('main.') || 
+        path.includes('app.') || 
+        path.includes('index.') ||
+        path.includes('service') || 
+        path.includes('controller') || 
+        path.includes('router') || 
+        path.includes('provider') || 
+        path.includes('bloc') || 
+        path.includes('api') ||
+        path.includes('architecture.md') ||
+        path.includes('blueprint.md');
+
+    return isArchitectural && coreExtensions.some(ext => path.endsWith(ext) || path.endsWith('.md'));
+  });
+
+  // Sort by depth (shorter paths first as they are often more foundational) and limit
+  return filteredTree
+    .sort((a, b) => a.path.split('/').length - b.path.split('/').length)
+    .slice(0, 15) // Get top 15 candidates
+    .map(item => item.path);
+};
+
 export const fetchRepoContext = async (url: string, token?: string): Promise<RepoContext> => {
   const meta = parseGitHubUrl(url);
-  if (!meta) throw new Error("Invalid GitHub URL or format (use 'owner/repo' or full URL)");
+  if (!meta) throw new Error("Invalid GitHub URL or format");
   const { owner, repo } = meta;
 
   const apiHeaders: HeadersInit = {
     'Accept': 'application/vnd.github.v3+json',
+    'User-Agent': 'ArchMind-Tool'
   };
   
-  if (token) {
-    apiHeaders['Authorization'] = `token ${token}`;
-  }
-
-  // Simple headers for raw content fetches to avoid CORS preflight issues with custom Accept headers
-  const rawHeaders: HeadersInit = token ? { 'Authorization': `token ${token}` } : {};
+  if (token) apiHeaders['Authorization'] = `token ${token}`;
 
   try {
-    // 1. Fetch Basic Info
+    // 1. Fetch Basic Info to get default branch
     const repoResponse = await fetch(`${GITHUB_API_BASE}/${owner}/${repo}`, { headers: apiHeaders });
-    if (!repoResponse.ok) {
-        if (repoResponse.status === 404) throw new Error("Repository not found or is private. Provide a Personal Access Token in settings if it's private.");
-        if (repoResponse.status === 403) throw new Error("GitHub API Rate limit exceeded. Please provide a Personal Access Token in settings.");
-        throw new Error(`GitHub API Error: ${repoResponse.statusText}`);
-    }
+    if (!repoResponse.ok) throw new Error(`Repo Fetch Failed: ${repoResponse.statusText}`);
     const repoData = await repoResponse.json();
+    const defaultBranch = repoData.default_branch || 'main';
 
-    // 2. Fetch Languages (Non-critical, wrap in silent catch)
-    let topLanguages = "Unknown";
-    try {
-        const langResponse = await fetch(`${GITHUB_API_BASE}/${owner}/${repo}/languages`, { headers: apiHeaders });
-        if (langResponse.ok) {
-            const languages = await langResponse.json();
-            topLanguages = Object.keys(languages).slice(0, 5).join(", ");
-        }
-    } catch (e) { console.warn("Failed to fetch languages", e); }
+    // 2. Fetch Recursive Tree
+    const treeUrl = `${GITHUB_API_BASE}/${owner}/${repo}/git/trees/${defaultBranch}?recursive=1`;
+    const treeResponse = await fetch(treeUrl, { headers: apiHeaders });
+    if (!treeResponse.ok) throw new Error(`Tree Fetch Failed: ${treeResponse.statusText}`);
+    const treeData = await treeResponse.json();
+    const fullTree = treeData.tree || [];
 
-    // 3. Fetch Root Contents
-    const contentsResponse = await fetch(`${GITHUB_API_BASE}/${owner}/${repo}/contents`, { headers: apiHeaders });
-    if (!contentsResponse.ok) throw new Error("Could not fetch repository contents.");
-    const contents = await contentsResponse.json();
+    // 3. Selection of Interesting Files
+    const interestingPaths = getInterestingFiles(fullTree);
+    const structureSummary = fullTree
+      .filter((item: any) => item.type === 'tree')
+      .slice(0, 30) // Only top 30 directories to prevent bloat
+      .map((item: any) => `- ${item.path}`)
+      .join('\n');
+
+    // 4. Fetch content for specific files (parallelized)
+    const filesToFetch = [
+        'README.md',
+        'package.json',
+        'go.mod',
+        'requirements.txt',
+        'pubspec.yaml', // Added pubspec for Flutter projects
+        ...interestingPaths.slice(0, 5) // Top 5 interesting logic files
+    ];
+
+    const contextMap: Record<string, string> = {};
     
-    let readmeContent = "";
-    let dependencyFileContent = "";
-    let structure = "";
-
-    if (Array.isArray(contents)) {
-      structure = contents.map((item: any) => `- ${item.name} (${item.type})`).join("\n");
-
-      // Try to find README (Granular try/catch to prevent total failure on CORS/Network issues)
-      const readme = contents.find((f: any) => f.name.toLowerCase().startsWith("readme"));
-      if (readme && readme.download_url) {
+    await Promise.all(
+      [...new Set(filesToFetch)].map(async (filePath) => {
         try {
-            const r = await fetch(readme.download_url, { headers: rawHeaders });
-            if (r.ok) {
-                const text = await r.text();
-                readmeContent = text.slice(0, 5000); 
+          const contentUrl = `${GITHUB_API_BASE}/${owner}/${repo}/contents/${filePath}`;
+          const res = await fetch(contentUrl, { headers: apiHeaders });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.content) {
+                // Decode base64
+                const content = Buffer.from(data.content, 'base64').toString('utf8');
+                contextMap[filePath] = content.slice(0, 2000); // 2k characters per file limit
             }
-        } catch (e) {
-            console.warn("Failed to fetch README content:", e);
-            readmeContent = "[README content unavailable due to fetch error]";
-        }
-      }
+          }
+        } catch (e) { /* silent skip */ }
+      })
+    );
 
-      // Try to find Dependency Files
-      const depFiles = ["package.json", "go.mod", "requirements.txt", "pom.xml", "Cargo.toml", "pyproject.toml", "Gemfile"];
-      const depFile = contents.find((f: any) => depFiles.includes(f.name));
-      
-      if (depFile && depFile.download_url) {
-        try {
-            const d = await fetch(depFile.download_url, { headers: rawHeaders });
-            if (d.ok) {
-                const content = await d.text();
-                dependencyFileContent = content.slice(0, 1500);
-            }
-        } catch (e) {
-            console.warn("Failed to fetch dependency file:", e);
-            dependencyFileContent = "[Dependency file unavailable due to fetch error]";
-        }
-      }
+    let summary = `
+REPOSITORY: ${owner}/${repo}
+DESCRIPTION: ${repoData.description || "None"}
+FILE STRUCTURE (OVERVIEW):
+${structureSummary}
+
+CORE CONTEXT FILES:
+`;
+
+    for (const [path, content] of Object.entries(contextMap)) {
+      summary += `\n--- FILE: ${path} ---\n${content}\n`;
     }
-
-    const summary = `
-Repository: ${owner}/${repo}
-Description: ${repoData.description || "No description"}
-Primary Languages: ${topLanguages}
-Stars: ${repoData.stargazers_count} | Forks: ${repoData.forks_count}
-
-File Structure (Root):
-${structure}
-
-Primary Dependency Context:
-${dependencyFileContent}
-
-README Content (Context):
-${readmeContent}
-    `.trim();
 
     return { owner, repo, summary };
 
   } catch (error: any) {
-    console.error("GitHub Fetch Error Details:", error);
-    // Re-throw with a more user-friendly message if it's a generic "Failed to fetch"
-    if (error.message === "Failed to fetch") {
-        throw new Error("Network error: Could not connect to GitHub. This may be due to CORS restrictions or your internet connection.");
-    }
+    console.error("Deep Scan Error:", error);
     throw error;
   }
 };

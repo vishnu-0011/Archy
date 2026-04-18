@@ -3,159 +3,137 @@ import { GenerateArchitectureResponse } from "../types.js";
 import { getMermaidImageUrl } from "../utils/mermaidUtils.js";
 
 const SYSTEM_INSTRUCTION = `
-You are **ArchMind**, an autonomous AI Solutions Architect modeled after a "Deep Agent" reasoning framework.
+You are **ArchMind v1.2**, a high-fidelity AI Solutions Architect.
+Your goal is to generate professional, organized, and structurally sound architecture diagrams using Mermaid.js.
 
-**OBJECTIVE:**
-Design highly **organized**, **readable**, and **professional** system architecture diagrams using Mermaid.js.
+### ARCHITECTURAL STANDARDS:
+1.  **Structural Organization (MANDATORY)**:
+    - You MUST organize your diagram using \`subgraph\` blocks to represent logical or physical tiers.
+    - Standard tiers: 
+        * \`Tier_Frontend\` (UI, ClientApps, Mobile)
+        * \`Tier_API\` (Gateways, Load Balancers, Routers)
+        * \`Tier_Services\` (Core Business Logic, Microservices, Background Workers)
+        * \`Tier_Data\` (Databases, Caches, File Storage)
+        * \`Tier_External\` (Third-party APIs, SaaS, External Systems)
 
-**CRITICAL PRIORITY: VISUAL CLARITY & SYNTAX SAFETY**
-1.  **Layout Direction**: **ALWAYS** use \`graph TB\` (Top-to-Bottom).
-2.  **Strict Verticality**: Ensure all data flows strictly from Top to Bottom.
-3.  **No Nesting**: **DO NOT NEST SUBGRAPHS**. Flatten the hierarchy.
+2.  **Semantic Node Definitions**:
+    - Users: \`User([End User]):::client\`
+    - UI Apps: \`App([Application]):::client\`
+    - API Entry: \`Gateway{{API Gateway}}:::gateway\`
+    - Processing: \`Service[Business Logic]::service\`
+    - Persistence: \`DB[(Database)]:::db\`
 
-**OUTPUT FORMAT (STRICT JSON):**
-You MUST return a VALID JSON object with the following structure. Do not return plain markdown.
-\`\`\`json
+3.  **Visual Hierarchy**:
+    - Use \`graph TD\` for deep hierarchical systems or \`graph LR\` for high-level data flows.
+    - Apply CSS classes consistently: \`:::client\`, \`:::gateway\`, \`:::service\`, \`:::db\`, \`:::storage\`, \`:::external\`.
+
+4.  **Interaction Metadata**:
+    - Every edge (arrow) MUST have a label describing the protocol or data type (e.g., \`-->|REST/JSON|\`, \`-->|gRPC|\`, \`-->|SQL Query|\`).
+
+### DIAGRAM REASONING:
+- Analyze the provided file structure and code snippets.
+- Identify the core framework (e.g., Flutter, NestJS, Django).
+- Infer state management (BLoC, Redux, Context API).
+- Map out the lifecycle of a request from user input to data persistence.
+
+### OUTPUT FORMAT (STRICT JSON):
+Return a JSON object:
 {
-  "strategic_overview": "A concise explanation (3-4 sentences)...",
-  "mermaid_code": "graph TB\\n...",
-  "node_descriptions": {
-    "NodeID": "Detailed description of this component's role...",
-    "User": "The end user accessing the application..."
+  "strategicOverview": "A high-level paragraph about the design philosophy.",
+  "mermaidCode": "The optimized mermaid diagram code.",
+  "theme": "blueprint, terminal, dark, synthwave",
+  "designRationale": "Why this specific layout and theme were selected.",
+  "nodeDescriptions": {
+    "NodeID": "Detailed role of this specific component."
   }
 }
-\`\`\`
-
-**MERMAID SYNTAX RULES:**
-1.  **Node IDs**: Use simple alphanumeric IDs (e.g., \`AuthService\`, \`UserDB\`).
-2.  **Labels**: ALWAYS quote labels: \`id["Label"]\`.
-3.  **No Comments**: Do not include comments in the mermaid string.
-
-**EXAMPLE JSON OUTPUT:**
-\`\`\`json
-{
-  "strategic_overview": "This architecture uses a microservices pattern...",
-  "mermaid_code": "graph TB\\n  Client --> API",
-  "node_descriptions": {
-    "Client": "React-based frontend application.",
-    "API": "Node.js API Gateway handling requests."
-  }
-}
-\`\`\`
 `;
 
 const cleanMermaidCode = (code: string): string => {
   let cleaned = code;
-  // Fix unquoted parallelogram labels containing parentheses: [/Label (Text)/] -> [/"Label (Text)"/]
   cleaned = cleaned.replace(/\[\/([^"\]\n]*?\([^\n]*?\)[^"\]\n]*?)\/\]/g, '[/"$1"/]');
-
-  // Replace HTML entities
   cleaned = cleaned.replace(/&gt;/g, '>');
   cleaned = cleaned.replace(/&lt;/g, '<');
-  cleaned = cleaned.replace(/&amp;/g, '&'); // Be careful with this one, might break things if not in label
-
+  cleaned = cleaned.replace(/&amp;/g, '&');
   return cleaned;
 };
 
 export const generateArchitecture = async (prompt: string, repoContext?: string, apiKeyOverride?: string): Promise<GenerateArchitectureResponse> => {
-  // 1. If in browser, use Vercel Serverless Function Proxy for security
-  if (typeof window !== 'undefined') {
-    try {
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, repoContext })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate via serverless function');
-      }
-
-      return await response.json();
-    } catch (error: any) {
-      console.error("Proxy Error:", error);
-      throw new Error(`Cloud Generation Failed: ${error.message}`);
-    }
-  }
-
-  // 2. If in Node (MCP Server/Local CLI), use direct API access
   try {
     const apiKey = apiKeyOverride || process.env.GEMINI_API_KEY || process.env.API_KEY;
-    
+
     if (!apiKey) {
-      throw new Error("Gemini API Key is missing. Please properly set GEMINI_API_KEY in your .env file or environment.");
+      throw new Error("Gemini API Key is missing.");
     }
     const ai = new GoogleGenAI({ apiKey });
 
     let finalPrompt = prompt;
     if (repoContext) {
       finalPrompt = `
-**CONTEXT: GITHUB REPOSITORY ANALYSIS**
-The user has provided a GitHub repository. Use the following file structure, readme summary, and dependency information to infer the architecture.
-Identify the key frameworks, databases, and architectural patterns (e.g., MVC, Microservices, Serverless) used in this project.
-
+**DEEP REPOSITORY ANALYSIS CONTEXT**
+Use the following deep scan information to infer a high-quality architecture.
 ${repoContext}
 
-**USER REQUEST:**
+**USER INSTRUCTION**
 ${prompt}
         `;
     }
 
-    // Using gemini-2.5-flash-lite for speed and reliability
     let response;
+    const models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+    let lastError: any;
     const MAX_RETRIES = 3;
     const BASE_DELAY = 1000;
 
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash-lite',
-          contents: finalPrompt,
-          config: {
-            systemInstruction: SYSTEM_INSTRUCTION,
-            temperature: 0.2,
-            responseMimeType: "application/json",
-          },
-        });
-        break; 
-      } catch (err: any) {
-        const isTransient = err?.status === 503 || err?.status === 429;
-        if (isTransient && attempt < MAX_RETRIES) {
-          const delay = BASE_DELAY * Math.pow(2, attempt - 1);
-          await new Promise(resolve => setTimeout(resolve, delay));
-        } else {
-          throw err;
+    for (const modelName of models) {
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          const result = await ai.models.generateContent({
+            model: modelName,
+            contents: [{ role: 'user', parts: [{ text: finalPrompt }] }],
+            config: {
+              systemInstruction: SYSTEM_INSTRUCTION,
+              temperature: 0.1,
+              responseMimeType: "application/json",
+            },
+          });
+          response = result;
+          break;
+        } catch (err: any) {
+          lastError = err;
+          const isTransient = err?.status === 503 || err?.status === 429 || (err?.message && err.message.includes("429"));
+          if (isTransient && attempt < MAX_RETRIES) {
+            const delay = BASE_DELAY * Math.pow(2, attempt - 1);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          } else {
+            break; // Try next model or fail
+          }
         }
       }
+      if (response) break;
     }
 
-    const text = response?.text || "";
-
-    let data;
-    try {
-      const jsonString = text.replace(/```json/g, '').replace(/```/g, '').trim();
-      data = JSON.parse(jsonString);
-    } catch (e) {
-      const cleaned = cleanMermaidCode(text);
-      return {
-        explanation: "Error parsing AI response. The raw output is shown below.",
-        mermaidCode: cleaned,
-        diagramImageUrl: getMermaidImageUrl(cleaned, true)
-      };
+    if (!response) {
+      throw lastError || new Error("Failed to get response from Gemini API.");
     }
 
-    const mermaidCode = cleanMermaidCode(data.mermaid_code || "");
-    
+    const text = String(response.text || "");
+    const data = JSON.parse(text);
+
+    const mermaidCode = cleanMermaidCode(data.mermaidCode || "");
+    const theme = data.theme || "dark";
+
     return {
-      explanation: data.strategic_overview || "No explanation provided.",
+      explanation: data.strategicOverview || "No explanation provided.",
       mermaidCode,
-      diagramImageUrl: getMermaidImageUrl(mermaidCode, true),
-      nodeDescriptions: data.node_descriptions || {}
+      diagramImageUrl: getMermaidImageUrl(mermaidCode, theme),
+      nodeDescriptions: data.nodeDescriptions || {},
+      theme,
+      designRationale: data.designRationale || ""
     };
 
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
-    throw new Error(`Failed to generate architecture diagram: ${error instanceof Error ? error.message : "Unknown error"}`);
+    console.error("Gemini v1.2 Error:", error);
+    throw error;
   }
-};
+};
