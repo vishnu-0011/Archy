@@ -31,6 +31,8 @@ export interface GenerateArchitectureResponse {
   mermaidCode: string;
   diagramImageUrl?: string;
   nodeDescriptions?: Record<string, string>;
+  theme?: string;
+  designRationale?: string;
 }
 
 export interface DiagramState {

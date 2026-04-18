@@ -9,12 +9,10 @@
 
 ---
 
-## 🚀 Recent Enhancements
-
-- **🔌 archmind-mcp-server Package**: Now available as a standalone, distributable NPM package. You can run it globally via `npx` or integrate it as a dependency.
-- **🛡️ Secure Vercel Hosting**: Fully refactored for Vercel deployment with a **Backend-for-Frontend (BFF)** proxy. Your `GEMINI_API_KEY` stays safe on the server and is never exposed to the client.
-- **🔌 Model Context Protocol (MCP)**: A fully compliant MCP server that bridges LLMs with visual architecture design.
-- **🖼️ Enhanced Visualizer**: Synchronized sidebar visualizer that reflects AI changes in real-time.
+- **🧠 ArchMind v1.2 Engine (Deep Reasoning)**: Transitioned from flat structures to professional architectural standards. The engine now enforces tiered subgraphs (Frontend, API, Logic, Data, External) for maximum clarity and semantic organization.
+- **🔍 Deep Recursive Scanning**: Upgraded `analyze_repo` and `generate_architecture` to use recursive Git Trees scanning, extracting high-fidelity context from nested directories instead of just the root.
+- **⚡ Model Fallback & Resilience**: Integrated automatic retries and model fallbacks (Gemini 2.5 Flash Lite → Gemini 1.5 Flash) to ensure continuous operation despite API rate limits.
+- **🔌 Standalone MCP Server**: Fully distributable NPM package for global `npx` usage or direct integration into AI agent workflows.
 
 ---
 
@@ -52,8 +50,9 @@ To use ArchMind within Claude, add the following to your `claude_desktop_config.
 > If using the local source, point the `args` to `archy-repo/mcp-server/dist/index.js` and ensure you've run `npm run build`.
 
 ### 3. Available Tools
-- **`generate_architecture`**: Converts natural language into a technical diagram.
-- **`analyze_repo`**: Scans a GitHub repository to infer its technical architecture.
+- **`generate_architecture`**: Converts natural language into a professional, tiered technical diagram. Supports recursive scanning via repository URLs.
+- **`analyze_repo`**: Performs a deep recursive scan of a GitHub repository to infer its technical architecture.
+- **`save_diagram`**: Renders Mermaid code to a PNG and saves it directly to the local filesystem (requires `output_path`).
 
 ---
 
