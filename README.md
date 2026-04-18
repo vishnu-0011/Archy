@@ -11,7 +11,7 @@
 
 ## 🚀 Recent Enhancements
 
-- **🔌 archmind-mcp Package**: Now available as a standalone, distributable NPM package. You can run it globally via `npx` or integrate it as a dependency.
+- **🔌 archmind-mcp-server Package**: Now available as a standalone, distributable NPM package. You can run it globally via `npx` or integrate it as a dependency.
 - **🛡️ Secure Vercel Hosting**: Fully refactored for Vercel deployment with a **Backend-for-Frontend (BFF)** proxy. Your `GEMINI_API_KEY` stays safe on the server and is never exposed to the client.
 - **🔌 Model Context Protocol (MCP)**: A fully compliant MCP server that bridges LLMs with visual architecture design.
 - **🖼️ Enhanced Visualizer**: Synchronized sidebar visualizer that reflects AI changes in real-time.
@@ -20,12 +20,12 @@
 
 ## 🔌 Connecting to MCP (AI Agents & IDEs)
 
-ArchMind acts as an **MCP Server**, allowing AI agents to generate professional diagrams using the **archmind-mcp** package.
+ArchMind acts as an **MCP Server**, allowing AI agents to generate professional diagrams using the **archmind-mcp-server** package.
 
 ### 1. Global Usage (Quickest)
 You can run the server instantly without cloning the repo:
 ```bash
-npx archmind-mcp
+npx archmind-mcp-server
 ```
 
 ### 2. Configure Claude Desktop
@@ -39,7 +39,7 @@ To use ArchMind within Claude, add the following to your `claude_desktop_config.
   "mcpServers": {
     "archmind": {
       "command": "npx",
-      "args": ["-y", "archmind-mcp"],
+      "args": ["-y", "archmind-mcp-server"],
       "env": {
         "GEMINI_API_KEY": "YOUR_API_KEY_HERE"
       }
