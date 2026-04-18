@@ -56,12 +56,14 @@ const cleanMermaidCode = (code: string): string => {
   return cleaned;
 };
 
-export const generateArchitecture = async (prompt: string, repoContext?: string): Promise<GenerateArchitectureResponse> => {
+export const generateArchitecture = async (prompt: string, repoContext?: string, apiKeyOverride?: string): Promise<GenerateArchitectureResponse> => {
   try {
-    if (!process.env.API_KEY) {
-      throw new Error("Gemini API Key is missing. Please properly set GEMINI_API_KEY in your .env file.");
+    const apiKey = apiKeyOverride || process.env.GEMINI_API_KEY || process.env.API_KEY;
+    
+    if (!apiKey) {
+      throw new Error("Gemini API Key is missing. Please properly set GEMINI_API_KEY in your .env file or environment.");
     }
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey });
 
     let finalPrompt = prompt;
     if (repoContext) {
