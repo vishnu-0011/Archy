@@ -2,79 +2,36 @@
   <h1 align="center">ArchMind</h1>
   <h3>AI-Powered Architecture Visualization</h3>
   <p>Generates high-fidelity, organized, and beautiful cloud architecture diagrams from simple text prompts or GitHub repository URLs.</p>
+
+  [![Live Demo](https://img.shields.io/badge/demo-live-green?style=for-the-badge)](https://archy-51lit4mnx-yashwant00cr7s-projects.vercel.app)
+  [![Vercel Deployment](https://img.shields.io/badge/Vercel-Deployed-black?style=for-the-badge&logo=vercel)](https://archy-51lit4mnx-yashwant00cr7s-projects.vercel.app)
 </div>
 
 ---
 
-## 🚀 Features
+## 🚀 Recent Enhancements
 
-- **🤖 AI-Driven Generation**: Powered by **Gemini 2.5 Flash**, converting natural language into complex Mermaid.js diagrams.
-- **✨ Premium Themes**: Choose from visually stunning themes including:
-  - **Obsidian Night** (Default dark mode)
-  - **Galaxy Stream** (Neon/Space aesthetics)
-  - **System Blueprint** (Technical engineering style)
-  - **Arctic Frost** (Clean light mode)
-- **📐 Optimized Layouts**: Enforces industry-standard **Left-to-Right (LR)** horizontal data flow for maximum readability.
-- **🔍 Deep Interaction**: 
-  - Smooth **Infinite Pan & Zoom**.
-  - **High-Visibility Typography** for easy reading at any scale.
-  - **Interactive Node Inspector** for detailed metadata.
-- **💾 Export & Share**: Instantly download high-resolution **PNG** images of your diagrams.
-- **🔗 GitHub Context**: Paste a GitHub repository URL to generate an architecture diagram based on the actual codebase structure.
-- **🔌 MCP Server**: Use ArchMind as a Model Context Protocol (MCP) server to generate diagrams from any MCP-compatible AI agent or IDE.
+- **🎬 Instant Image Previews**: The AI now returns rendered architecture images (via `mermaid.ink`) directly in the chat, allowing you to see your design without leaving the conversation.
+- **🛡️ Secure Vercel Hosting**: Fully refactored for Vercel deployment with a **Backend-for-Frontend (BFF)** proxy. Your `GEMINI_API_KEY` stays safe on the server and is never exposed to the client.
+- **🔌 Model Context Protocol (MCP)**: Now includes a fully functional MCP server, allowing you to generate architecture diagrams directly within Claude Desktop or any MCP-compatible agent.
+- **🖼️ Enhanced Visualizer**: Synchronized sidebar visualizer that reflects AI changes in real-time.
 
-## 🛠️ Tech Stack
+---
 
-- **Frontend**: React, Vite, Tailwind CSS
-- **Visualization**: Mermaid.js
-- **AI Model**: Google Gemini 2.5 Flash
-- **Icons**: Lucide React & FontAwesome
+## 🔌 Connecting to MCP (AI Agents & IDEs)
 
-## 🏃 Run Locally
+ArchMind acts as an **MCP Server**, bridging the gap between LLMs and visual architecture design.
 
-**Prerequisites:** Node.js (v18+)
+### 1. Prerequisites
+- **Node.js**: v18 or higher.
+- **Google Gemini API Key**: Get one from [Google AI Studio](https://aistudio.google.com/).
 
-1. **Clone the repository**
-   ```bash
-   git clone <your-repo-url>
-   cd Archy
-   ```
+### 2. Configure Claude Desktop
+To use ArchMind within Claude, add the following to your `claude_desktop_config.json`:
 
-2. **Install Dependencies**
-   ```bash
-   npm install
-   ```
+**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`  
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 
-3. **Configure Environment**
-   Create a `.env` file in the root directory and add your Google Gemini API Key:
-   ```env
-   GEMINI_API_KEY=your_api_key_here
-   ```
-
-4. **Start the App**
-   ```bash
-   npm run dev
-   ```
-   Open [http://localhost:3004](http://localhost:3004) to view it in the browser.
-
-## 🔌 MCP Server Integration
-
-ArchMind now acts as an **MCP Server**, allowing you to use its architecture generation capabilities directly from your favorite AI tools (like Claude Desktop).
-
-### 1. Run the Server
-From the root directory:
-```bash
-npm run mcp:run
-```
-
-### 2. Available Tools
-- **`generate_architecture`**: Generates a Mermaid.js diagram from a prompt. 
-  - *Args*: `prompt` (string), `repoUrl` (optional string)
-- **`analyze_repo`**: Infers architecture context from a GitHub repository.
-  - *Args*: `url` (string)
-
-### 3. Client Configuration
-To use with Claude Desktop, add this to your `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
@@ -82,24 +39,64 @@ To use with Claude Desktop, add this to your `claude_desktop_config.json`:
       "command": "node",
       "args": ["<path-to-repo>/mcp-server/dist/index.js"],
       "env": {
-        "GEMINI_API_KEY": "YOUR_API_KEY"
+        "GEMINI_API_KEY": "YOUR_API_KEY_HERE"
       }
     }
   }
 }
 ```
-*(Note: Ensure you run `npm run build` inside `mcp-server/` first to generate the dist directory).*
 
-## 🎮 Usage
+> [!TIP]
+> Make sure to run `npm run build` in the root directory before connecting to ensure the MCP server bundle is generated!
 
-1. **Enter a Prompt**: Type a description like "E-commerce microservices with Redis and Kafka".
-2. **Or Use a Repo**: Paste a full GitHub URL (e.g., `https://github.com/owner/repo`) to analyze the code.
-3. **Explore**:
-   - Use **Ctrl + Scroll** to zoom.
-   - Drag to pan.
-   - Click nodes to see details.
-   - Click the **Download** icon to save the diagram.
+### 3. Available Tools
+- **`generate_architecture`**: Converts natural language into a technical diagram.
+- **`analyze_repo`**: Scans a GitHub repository to infer its technical architecture.
+
+---
+
+## 🛠️ Tech Stack
+
+- **Frontend**: React (Vite) + Vanilla CSS (Glassmorphism)
+- **Visualization**: Mermaid.js & Mermaid.ink API
+- **AI Model**: Google Gemini 2.0 Flash
+- **Cloud Hosting**: Vercel (with Serverless Backend)
+
+---
+
+## 🏃 Local Development
+
+1. **Clone & Install**
+   ```bash
+   git clone https://github.com/Yashwant00CR7/Archy.git
+   cd Archy
+   npm install
+   ```
+
+2. **Setup Environment**
+   Create a `.env` file:
+   ```env
+   GEMINI_API_KEY=your_key_here
+   ```
+
+3. **Start Development Server**
+   ```bash
+   npm run dev
+   ```
+
+---
+
+## 🌍 Vercel Deployment
+
+This project is optimized for Vercel out of the box.
+
+1. **Fork the Repository** to your GitHub account.
+2. **Connect to Vercel**: Import the project from the Vercel Dashboard.
+3. **Environment Variables**: Add your `GEMINI_API_KEY` in settings.
+4. **Deploy**: Vercel will handle the rest, including the API proxy setup!
+
+---
 
 ## 📄 License
 
-MIT
+MIT © [vishnu-0011](https://github.com/vishnu-0011)
