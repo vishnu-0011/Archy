@@ -109,7 +109,7 @@ ${prompt}
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        const result = await ai.models.generateContent({
+        response = await ai.models.generateContent({
           model: 'gemini-2.5-flash-lite',
           contents: finalPrompt,
           config: {
@@ -118,7 +118,6 @@ ${prompt}
             responseMimeType: "application/json",
           },
         });
-        response = await result.response;
         break; 
       } catch (err: any) {
         const isTransient = err?.status === 503 || err?.status === 429;
@@ -131,7 +130,8 @@ ${prompt}
       }
     }
 
-    const text = response ? response.text() : "";
+    const text = response?.text || "";
+
     let data;
     try {
       const jsonString = text.replace(/```json/g, '').replace(/```/g, '').trim();
