@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Message, Sender } from '../types';
-import { Send, Bot, User, Code, Layers, Github, X, Settings2, ShieldCheck, ShieldAlert, Sparkles, Cpu, Search, Workflow } from 'lucide-react';
+import { Send, Bot, User, Code, Layers, Github, X, Settings2, ShieldCheck, ShieldAlert, Sparkles, Cpu, Search, Workflow, ExternalLink, Image as ImageIcon } from 'lucide-react';
 
 interface ChatInterfaceProps {
   messages: Message[];
@@ -128,14 +128,47 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     {msg.text}
                 </div>
                 
+                {msg.sender === Sender.AI && msg.diagramImageUrl && (
+                    <div className="mt-3 group/img relative">
+                        <div className="rounded-xl overflow-hidden border border-indigo-500/20 shadow-lg bg-gray-950/50 cursor-pointer transition-all hover:border-indigo-500/50"
+                             onClick={() => msg.diagramCode && onViewDiagram(msg.diagramCode)}>
+                            <img 
+                                src={msg.diagramImageUrl} 
+                                alt="Architecture Preview" 
+                                className="w-full h-auto object-contain max-h-[300px] transition-transform duration-500 group-hover/img:scale-[1.02]"
+                                loading="lazy"
+                            />
+                            <div className="absolute inset-0 bg-indigo-600/0 group-hover/img:bg-indigo-600/5 transition-all flex items-center justify-center opacity-0 group-hover/img:opacity-100">
+                                <div className="bg-gray-900/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-indigo-500/30 flex items-center gap-2 text-[10px] font-bold text-indigo-300">
+                                    <ImageIcon className="w-3 h-3" />
+                                    EXPAND IN VISUALIZER
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                
                 {msg.sender === Sender.AI && msg.diagramCode && (
-                    <button 
-                        onClick={() => onViewDiagram(msg.diagramCode!)}
-                        className="self-start flex items-center gap-2 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 transition-all bg-indigo-500/5 px-4 py-1.5 rounded-full border border-indigo-500/20 hover:bg-indigo-500/10 hover:border-indigo-500/40"
-                    >
-                        <Code className="w-3 h-3" />
-                        Explore Diagram
-                    </button>
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={() => onViewDiagram(msg.diagramCode!)}
+                            className="self-start flex items-center gap-2 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 transition-all bg-indigo-500/5 px-4 py-1.5 rounded-full border border-indigo-500/20 hover:bg-indigo-500/10 hover:border-indigo-500/40"
+                        >
+                            <Code className="w-3 h-3" />
+                            Explore Diagram
+                        </button>
+                        {msg.diagramImageUrl && (
+                            <a 
+                                href={msg.diagramImageUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="self-start flex items-center gap-2 text-[11px] font-semibold text-gray-500 hover:text-gray-400 transition-all bg-gray-500/5 px-4 py-1.5 rounded-full border border-gray-500/10 hover:bg-gray-500/10"
+                            >
+                                <ExternalLink className="w-3 h-3" />
+                                Direct Link
+                            </a>
+                        )}
+                    </div>
                 )}
             </div>
           </div>

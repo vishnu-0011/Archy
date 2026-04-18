@@ -94,14 +94,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       const result = await generateArchitecture(prompt, repoContext);
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Strategic Overview:\n${result.explanation}\n\nMermaid Code:\n\`\`\`mermaid\n${result.mermaidCode}\n\`\`\``,
-          },
-        ],
-      };
+      const content: any[] = [
+        {
+          type: "text",
+          text: `Strategic Overview:\n${result.explanation}\n\nMermaid Code:\n\`\`\`mermaid\n${result.mermaidCode}\n\`\`\``,
+        },
+      ];
+
+      if (result.diagramImageUrl) {
+        content.push({
+          type: "text",
+          text: `\nRendered Image URL:\n${result.diagramImageUrl}`,
+        });
+      }
+
+      return { content };
     }
 
     if (name === "analyze_repo") {

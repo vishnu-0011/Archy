@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { GenerateArchitectureResponse } from "../types";
+import { getMermaidImageUrl } from "../utils/mermaidUtils";
 
 const SYSTEM_INSTRUCTION = `
 You are **ArchMind**, an autonomous AI Solutions Architect modeled after a "Deep Agent" reasoning framework.
@@ -129,9 +130,12 @@ ${prompt}
       };
     }
 
+    const mermaidCode = cleanMermaidCode(data.mermaid_code || "");
+    
     return {
       explanation: data.strategic_overview || "No explanation provided.",
-      mermaidCode: cleanMermaidCode(data.mermaid_code || ""),
+      mermaidCode,
+      diagramImageUrl: getMermaidImageUrl(mermaidCode, true), // Default to dark mode for premium look
       nodeDescriptions: data.node_descriptions || {}
     };
 

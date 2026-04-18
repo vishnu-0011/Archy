@@ -69,7 +69,7 @@ const App: React.FC = () => {
       }
 
       // Generate Architecture
-      const { explanation, mermaidCode, nodeDescriptions } = await generateArchitecture(
+      const { explanation, mermaidCode, nodeDescriptions, diagramImageUrl } = await generateArchitecture(
         githubMeta ? "Visualize the architecture of this repository based on the provided file structure and readme." : promptText,
         repoContext
       );
@@ -79,7 +79,8 @@ const App: React.FC = () => {
         text: explanation,
         sender: Sender.AI,
         timestamp: Date.now(),
-        diagramCode: mermaidCode
+        diagramCode: mermaidCode,
+        diagramImageUrl: diagramImageUrl
       };
 
       setMessages(prev => [...prev, aiMsg]);
