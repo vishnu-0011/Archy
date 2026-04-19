@@ -21,7 +21,7 @@ dotenv.config({
 // Import existing services
 import { generateArchitecture } from "./services/geminiService.js";
 import { fetchRepoContext } from "./services/githubService.js";
-import { getMermaidImageBase64 } from "./utils/mermaidUtils.js";
+import { getMermaidImageBase64, cleanMermaidCode } from "./utils/mermaidUtils.js";
 
 const server = new Server(
   {
@@ -116,7 +116,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   try {
-    if (name === "generate_architecture") {
+    switch (name) {
+      case "generate_architecture": {
       const { prompt, repoUrl } = z
         .object({
           prompt: z.string(),
@@ -157,31 +158,35 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return { content };
     }
 
-    if (name === "render_mermaid") {
-      const { code } = z
-        .object({
-          code: z.string(),
-        })
-        .parse(args);
+    case "render_mermaid": {
+      const { code, theme = "dark" } = request.params.arguments as { code: string; theme?: string };
+      
+      try {
+        const cleanedCode = cleanMermaidCode(code);
+        const imageResult = await getMermaidImageBase64(cleanedCode, theme as any);
+        
+        if (!imageResult) {
+          return {
+            content: [{ type: "text", text: "Failed to render mermaid diagram to image." }],
+            isError: true,
+          };
+        }
 
-      const imageResult = await getMermaidImageBase64(code, "dark");
-
-      if (!imageResult) {
-        throw new Error("Failed to render mermaid diagram to image.");
+        return {
+          content: [
+            {
+              type: "image",
+              data: imageResult.data,
+              mimeType: imageResult.mimeType,
+            },
+          ],
+        };
+      } catch (error) {
+        throw error;
       }
-
-      return {
-        content: [
-          {
-            type: "image",
-            data: imageResult.data,
-            mimeType: imageResult.mimeType,
-          },
-        ],
-      };
     }
 
-    if (name === "save_diagram") {
+    case "save_diagram": {
       const { code, output_path } = z
         .object({
           code: z.string(),
@@ -189,35 +194,51 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         })
         .parse(args);
 
-      const imageResult = await getMermaidImageBase64(code, "dark");
+      try {
+        const cleanedCode = cleanMermaidCode(code);
+        const imageResult = await getMermaidImageBase64(cleanedCode, "dark");
 
-      if (!imageResult) {
-        throw new Error("Failed to render mermaid diagram to image.");
+        if (!imageResult) {
+          return {
+            content: [{ type: "text", text: "Failed to render mermaid diagram to image." }],
+            isError: true,
+          };
+        }
+
+        const absolutePath = path.isAbsolute(output_path)
+          ? output_path
+          : path.resolve(process.cwd(), output_path);
+
+        const dir = path.dirname(absolutePath);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+
+        const buffer = Buffer.from(imageResult.data, "base64");
+        fs.writeFileSync(absolutePath, buffer);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Diagram successfully saved to: ${absolutePath}`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to save diagram: ${(error as Error).message}`,
+            },
+          ],
+          isError: true,
+        };
       }
-
-      const absolutePath = path.isAbsolute(output_path)
-        ? output_path
-        : path.resolve(process.cwd(), output_path);
-
-      const dir = path.dirname(absolutePath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
-
-      const buffer = Buffer.from(imageResult.data, "base64");
-      fs.writeFileSync(absolutePath, buffer);
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Diagram successfully saved to: ${absolutePath}`,
-          },
-        ],
-      };
     }
 
-    if (name === "analyze_repo") {
+      case "analyze_repo": {
       const { url } = z
         .object({
           url: z.string(),
@@ -234,9 +255,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           },
         ],
       };
+      }
+      default:
+        throw new Error(`Tool not found: ${name}`);
     }
-
-    throw new Error(`Tool not found: ${name}`);
   } catch (error: any) {
     return {
       content: [

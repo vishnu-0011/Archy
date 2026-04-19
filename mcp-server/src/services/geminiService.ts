@@ -20,7 +20,7 @@ Your goal is to generate professional, organized, and structurally sound archite
     - Users: \`User([End User]):::client\`
     - UI Apps: \`App([Application]):::client\`
     - API Entry: \`Gateway{{API Gateway}}:::gateway\`
-    - Processing: \`Service[Business Logic]::service\`
+    - Processing: \`Service[Business Logic]:::service\`
     - Persistence: \`DB[(Database)]:::db\`
 
 3.  **Visual Hierarchy**:
@@ -49,14 +49,7 @@ Return a JSON object:
 }
 `;
 
-const cleanMermaidCode = (code: string): string => {
-  let cleaned = code;
-  cleaned = cleaned.replace(/\[\/([^"\]\n]*?\([^\n]*?\)[^"\]\n]*?)\/\]/g, '[/"$1"/]');
-  cleaned = cleaned.replace(/&gt;/g, '>');
-  cleaned = cleaned.replace(/&lt;/g, '<');
-  cleaned = cleaned.replace(/&amp;/g, '&');
-  return cleaned;
-};
+import { cleanMermaidCode } from "../utils/mermaidUtils.js";
 
 export const generateArchitecture = async (prompt: string, repoContext?: string, apiKeyOverride?: string): Promise<GenerateArchitectureResponse> => {
   try {
@@ -79,8 +72,8 @@ ${prompt}
         `;
     }
 
-    let response;
-    const models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+    let responseText = "";
+    const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
     let lastError: any;
     const MAX_RETRIES = 3;
     const BASE_DELAY = 1000;
@@ -88,6 +81,7 @@ ${prompt}
     for (const modelName of models) {
       for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
+          // Using the Unified SDK @google/genai pattern
           const result = await ai.models.generateContent({
             model: modelName,
             contents: [{ role: 'user', parts: [{ text: finalPrompt }] }],
@@ -97,8 +91,11 @@ ${prompt}
               responseMimeType: "application/json",
             },
           });
-          response = result;
-          break;
+
+          if (result && result.text) {
+            responseText = result.text;
+            break;
+          }
         } catch (err: any) {
           lastError = err;
           const isTransient = err?.status === 503 || err?.status === 429 || (err?.message && err.message.includes("429"));
@@ -106,19 +103,19 @@ ${prompt}
             const delay = BASE_DELAY * Math.pow(2, attempt - 1);
             await new Promise(resolve => setTimeout(resolve, delay));
           } else {
+            console.warn(`Model ${modelName} failed on attempt ${attempt}:`, err.message);
             break; // Try next model or fail
           }
         }
       }
-      if (response) break;
+      if (responseText) break;
     }
 
-    if (!response) {
+    if (!responseText) {
       throw lastError || new Error("Failed to get response from Gemini API.");
     }
 
-    const text = String(response.text || "");
-    const data = JSON.parse(text);
+    const data = JSON.parse(responseText);
 
     const mermaidCode = cleanMermaidCode(data.mermaidCode || "");
     const theme = data.theme || "dark";

@@ -1,3 +1,11 @@
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import zlib from "zlib";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const LOG_FILE = path.resolve(__dirname, "../../mermaid_error.log");
+
 /**
  * Utilities for working with Mermaid diagrams and external rendering services.
  */
@@ -87,6 +95,56 @@ export const THEMES = {
 };
 
 /**
+ * Cleans and sanitizes Mermaid code to ensure it's compatible with rendering services.
+ * Specifically handles quoting of edge labels that contain special characters.
+ */
+export const cleanMermaidCode = (code: string): string => {
+  let cleaned = code;
+  
+  // Quote edge labels to ensure special characters like ( ) / { } aren't misinterpreted
+  // Match: -->|label|, --&gt;|label|, -.->|label|, --o|label|
+  // We use a more flexible regex to handle optional spaces around the arrows
+  cleaned = cleaned.replace(/([-.]+(?:>|--&gt;|o))\s*\|(.+?)\|/g, (match, arrow, label) => {
+    const trimmedLabel = label.trim();
+    // Only wrap in quotes if not already quoted
+    if (trimmedLabel.startsWith('"') && trimmedLabel.endsWith('"')) {
+      const standardArrow = arrow.replace('--&gt;', '-->');
+      return `${standardArrow}|${trimmedLabel}|`;
+    }
+    const standardArrow = arrow.replace('--&gt;', '-->');
+    return `${standardArrow}|"${trimmedLabel}"|`;
+  });
+  
+  // Cleanup other entities and ensure consistent arrows
+  cleaned = cleaned.replace(/--&gt;/g, '-->');
+  cleaned = cleaned.replace(/&gt;/g, '>');
+  cleaned = cleaned.replace(/&lt;/g, '<');
+  cleaned = cleaned.replace(/&amp;/g, '&');
+  
+  return cleaned;
+};
+
+/**
+ * Generates a Kroki.io image URL for a given mermaid code string.
+ * Kroki uses zlib compression (deflate) + base64url which handles long diagrams better.
+ */
+export const getKrokiImageUrl = (mermaidCode: string, format: 'svg' | 'png' = 'png'): string => {
+  try {
+    const cleanedCode = cleanMermaidCode(mermaidCode);
+    const compressed = zlib.deflateSync(cleanedCode, { level: 9 });
+    const base64url = compressed.toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+    
+    return `https://kroki.io/mermaid/${format}/${base64url}`;
+  } catch (error) {
+    console.error('[Archy] Error generating Kroki URL:', error);
+    return '';
+  }
+};
+
+/**
  * Generates a mermaid.ink image URL for a given mermaid code string.
  */
 export const getMermaidImageUrl = (mermaidCode: string, themeId: keyof typeof THEMES = 'dark'): string => {
@@ -122,16 +180,39 @@ export const getMermaidImageBase64 = async (
 ): Promise<{ data: string; mimeType: string } | null> => {
   let url = '';
   try {
-    url = getMermaidImageUrl(mermaidCode, themeId);
+    // Attempt Kroki first as it's more robust for large diagrams
+    url = getKrokiImageUrl(mermaidCode, 'png');
     if (!url) return null;
 
-    const response = await fetch(url, {
+    let response = await fetch(url, {
       headers: {
-        'User-Agent': 'Archy-MCP-Server/1.0.0'
+        'User-Agent': `ArchMind-MCP/${process.env.npm_package_version || '1.2.3'}`
       }
     });
+
+    // Fallback to mermaid.ink if Kroki fails (e.g. rate limit or downtime)
+    if (!response.ok) {
+      console.warn(`[Archy] Kroki failed (${response.status}), falling back to mermaid.ink`);
+      url = getMermaidImageUrl(mermaidCode, themeId);
+      if (url) {
+        response = await fetch(url, {
+          headers: {
+            'User-Agent': `ArchMind-MCP/${process.env.npm_package_version || '1.2.3'}`
+          }
+        });
+      }
+    }
+
     if (!response.ok) {
       const errorText = await response.text();
+      const logMsg = `[${new Date().toISOString()}] URL: ${url}\nStatus: ${response.status}\nBody: ${errorText}\n\n`;
+      try {
+        fs.appendFileSync(LOG_FILE, logMsg);
+      } catch (e) {
+        console.error(`[Archy] Failed to write to log file: ${e}`);
+      }
+      console.error(`[Archy] mermaid.ink returned ${response.status} ${response.statusText}`);
+      console.error(`[Archy] Error Body: ${errorText}`);
       throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}. Response: ${errorText}`);
     }
 
@@ -139,8 +220,8 @@ export const getMermaidImageBase64 = async (
     const base64Img = Buffer.from(arrayBuffer).toString("base64");
 
     return { data: base64Img, mimeType: "image/png" };
-  } catch (error) {
-    console.error(`[Archy] Error fetching image base64 from ${url}:`, error);
+  } catch (error: any) {
+    console.error(`[Archy] Fatal error fetching/processing image:`, error);
     return null;
   }
 };
