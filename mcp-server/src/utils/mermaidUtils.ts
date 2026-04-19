@@ -1,3 +1,5 @@
+import fs from "fs";
+
 /**
  * Utilities for working with Mermaid diagrams and external rendering services.
  */
@@ -127,11 +129,14 @@ export const getMermaidImageBase64 = async (
 
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Archy-MCP-Server/1.0.0'
+        'User-Agent': 'Archy-MCP-Server/1.2.2'
       }
     });
+
     if (!response.ok) {
       const errorText = await response.text();
+      console.error(`[Archy] mermaid.ink returned ${response.status} ${response.statusText}`);
+      console.error(`[Archy] Error Body: ${errorText}`);
       throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}. Response: ${errorText}`);
     }
 
@@ -139,8 +144,8 @@ export const getMermaidImageBase64 = async (
     const base64Img = Buffer.from(arrayBuffer).toString("base64");
 
     return { data: base64Img, mimeType: "image/png" };
-  } catch (error) {
-    console.error(`[Archy] Error fetching image base64 from ${url}:`, error);
+  } catch (error: any) {
+    console.error(`[Archy] Fatal error fetching/processing image:`, error);
     return null;
   }
 };

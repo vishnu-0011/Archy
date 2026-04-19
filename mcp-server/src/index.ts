@@ -167,7 +167,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const imageResult = await getMermaidImageBase64(code, "dark");
 
       if (!imageResult) {
-        throw new Error("Failed to render mermaid diagram to image.");
+        throw new Error("Failed to render mermaid diagram to image. Please check the server logs for specific mermaid.ink error details (status code and response body).");
       }
 
       return {
@@ -192,7 +192,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const imageResult = await getMermaidImageBase64(code, "dark");
 
       if (!imageResult) {
-        throw new Error("Failed to render mermaid diagram to image.");
+        throw new Error("Failed to render mermaid diagram to image. Please check the server logs for specific mermaid.ink error details (status code and response body).");
       }
 
       const absolutePath = path.isAbsolute(output_path)

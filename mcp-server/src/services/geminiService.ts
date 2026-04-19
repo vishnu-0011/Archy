@@ -20,7 +20,7 @@ Your goal is to generate professional, organized, and structurally sound archite
     - Users: \`User([End User]):::client\`
     - UI Apps: \`App([Application]):::client\`
     - API Entry: \`Gateway{{API Gateway}}:::gateway\`
-    - Processing: \`Service[Business Logic]::service\`
+    - Processing: \`Service[Business Logic]:::service\`
     - Persistence: \`DB[(Database)]:::db\`
 
 3.  **Visual Hierarchy**:
@@ -51,7 +51,12 @@ Return a JSON object:
 
 const cleanMermaidCode = (code: string): string => {
   let cleaned = code;
-  cleaned = cleaned.replace(/\[\/([^"\]\n]*?\([^\n]*?\)[^"\]\n]*?)\/\]/g, '[/"$1"/]');
+  // Ensure labels with parentheses or special chars are handled safely
+  // Mermaid's parser can be sensitive to ( ) and / in labels.
+  cleaned = cleaned.replace(/--&gt;\|(.*?)\|/g, '-->|"$1"|');
+  cleaned = cleaned.replace(/--&gt;/g, '-->');
+  cleaned = cleaned.replace(/--o\|(.*?)\|/g, '--o|"$1"|');
+  cleaned = cleaned.replace(/--o/g, '--o');
   cleaned = cleaned.replace(/&gt;/g, '>');
   cleaned = cleaned.replace(/&lt;/g, '<');
   cleaned = cleaned.replace(/&amp;/g, '&');
