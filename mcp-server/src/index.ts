@@ -21,7 +21,7 @@ dotenv.config({
 // Import existing services
 import { generateArchitecture } from "./services/geminiService.js";
 import { fetchRepoContext } from "./services/githubService.js";
-import { getMermaidImageBase64 } from "./utils/mermaidUtils.js";
+import { getMermaidImageBase64, cleanMermaidCode } from "./utils/mermaidUtils.js";
 
 const server = new Server(
   {
@@ -164,7 +164,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         })
         .parse(args);
 
-      const imageResult = await getMermaidImageBase64(code, "dark");
+      const cleanedCode = cleanMermaidCode(code);
+      const imageResult = await getMermaidImageBase64(cleanedCode, "dark");
 
       if (!imageResult) {
         throw new Error("Failed to render mermaid diagram to image. Please check the server logs for specific mermaid.ink error details (status code and response body).");
@@ -189,7 +190,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         })
         .parse(args);
 
-      const imageResult = await getMermaidImageBase64(code, "dark");
+      const cleanedCode = cleanMermaidCode(code);
+      const imageResult = await getMermaidImageBase64(cleanedCode, "dark");
 
       if (!imageResult) {
         throw new Error("Failed to render mermaid diagram to image. Please check the server logs for specific mermaid.ink error details (status code and response body).");

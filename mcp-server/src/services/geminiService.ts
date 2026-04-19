@@ -49,28 +49,7 @@ Return a JSON object:
 }
 `;
 
-const cleanMermaidCode = (code: string): string => {
-  let cleaned = code;
-  // Quote edge labels to ensure special characters like ( ) / aren't misinterpreted
-  // Match both literal -->|label| and HTML-encoded --&gt;|label|
-  cleaned = cleaned.replace(/(-->|--&gt;)\|(.+?)\|/g, (match, arrow, label) => {
-    // Only wrap in quotes if not already quoted
-    const trimmedLabel = label.trim();
-    if (trimmedLabel.startsWith('"') && trimmedLabel.endsWith('"')) {
-      return `${arrow === '--&gt;' ? '-->' : arrow}|${trimmedLabel}|`;
-    }
-    return `${arrow === '--&gt;' ? '-->' : arrow}|"${trimmedLabel}"|`;
-  });
-  
-  // Cleanup other entities
-  cleaned = cleaned.replace(/--&gt;/g, '-->');
-  cleaned = cleaned.replace(/--o\|(.*?)\|/g, '--o|"$1"|');
-  cleaned = cleaned.replace(/--o/g, '--o');
-  cleaned = cleaned.replace(/&gt;/g, '>');
-  cleaned = cleaned.replace(/&lt;/g, '<');
-  cleaned = cleaned.replace(/&amp;/g, '&');
-  return cleaned;
-};
+import { cleanMermaidCode } from "../utils/mermaidUtils.js";
 
 export const generateArchitecture = async (prompt: string, repoContext?: string, apiKeyOverride?: string): Promise<GenerateArchitectureResponse> => {
   try {
