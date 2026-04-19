@@ -51,9 +51,18 @@ Return a JSON object:
 
 const cleanMermaidCode = (code: string): string => {
   let cleaned = code;
-  // Ensure labels with parentheses or special chars are handled safely
-  // Mermaid's parser can be sensitive to ( ) and / in labels.
-  cleaned = cleaned.replace(/--&gt;\|(.*?)\|/g, '-->|"$1"|');
+  // Quote edge labels to ensure special characters like ( ) / aren't misinterpreted
+  // Match both literal -->|label| and HTML-encoded --&gt;|label|
+  cleaned = cleaned.replace(/(-->|--&gt;)\|(.+?)\|/g, (match, arrow, label) => {
+    // Only wrap in quotes if not already quoted
+    const trimmedLabel = label.trim();
+    if (trimmedLabel.startsWith('"') && trimmedLabel.endsWith('"')) {
+      return `${arrow === '--&gt;' ? '-->' : arrow}|${trimmedLabel}|`;
+    }
+    return `${arrow === '--&gt;' ? '-->' : arrow}|"${trimmedLabel}"|`;
+  });
+  
+  // Cleanup other entities
   cleaned = cleaned.replace(/--&gt;/g, '-->');
   cleaned = cleaned.replace(/--o\|(.*?)\|/g, '--o|"$1"|');
   cleaned = cleaned.replace(/--o/g, '--o');
