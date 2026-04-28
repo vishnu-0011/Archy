@@ -3,6 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import zlib from "zlib";
 import { THEMES, cleanMermaidCode } from "./mermaidUtils.js";
+export { THEMES, cleanMermaidCode };
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LOG_FILE = path.resolve(__dirname, "../../mermaid_error.log");

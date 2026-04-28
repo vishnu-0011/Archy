@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { getMermaidImageUrl } from "../utils/mermaidUtils";
+import { getMermaidImageUrl } from "../mcp-server/src/utils/mermaidUtils";
 
 const SYSTEM_INSTRUCTION = `
 You are **ArchMind**, an autonomous AI Solutions Architect modeled after a "Deep Agent" reasoning framework.
@@ -75,7 +75,7 @@ ${prompt}
     }
 
     const result = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-lite',
+      model: 'gemini-2.5-flash',
       contents: finalPrompt,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
@@ -95,7 +95,7 @@ ${prompt}
       return res.status(200).json({
         explanation: "Error parsing AI response. The raw output is shown below.",
         mermaidCode: cleanMermaidCode(text),
-        diagramImageUrl: getMermaidImageUrl(cleanMermaidCode(text), true)
+        diagramImageUrl: getMermaidImageUrl(cleanMermaidCode(text), 'dark')
       });
     }
 
@@ -104,7 +104,7 @@ ${prompt}
     return res.status(200).json({
       explanation: data.strategic_overview || "No explanation provided.",
       mermaidCode,
-      diagramImageUrl: getMermaidImageUrl(mermaidCode, true),
+      diagramImageUrl: getMermaidImageUrl(mermaidCode, 'dark'),
       nodeDescriptions: data.node_descriptions || {}
     });
 

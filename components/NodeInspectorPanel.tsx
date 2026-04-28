@@ -1,5 +1,5 @@
 import React from 'react';
-import { NodeDetail } from '../types';
+import { NodeDetail } from '../mcp-server/src/types';
 import { X, Info, Zap, Link as LinkIcon, Cpu } from 'lucide-react';
 
 interface NodeInspectorPanelProps {

@@ -7,6 +7,14 @@ export interface DiagramElement {
   [key: string]: any; // Additional properties as needed
 }
 
+export interface NodeDetail {
+  id: string;
+  label: string;
+  description: string;
+  technologies?: string[];
+  relatedComponents?: string[];
+}
+
 // Represents a diagram grouped by layers
 export interface LayeredDiagram {
   layers: Record<string, DiagramElement[]>; // key: layer name, value: elements in that layer
