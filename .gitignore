@@ -25,5 +25,7 @@ dist-ssr
 .env
 .env.local
 .vercel
-BLUEPRINT.md
-.claude
+
+# Project specification files (unignored to maintain SDD state)
+# BLUEPRINT.md
+# .spec

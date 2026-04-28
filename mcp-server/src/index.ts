@@ -21,7 +21,7 @@ dotenv.config({
 // Import existing services
 import { generateArchitecture } from "./services/geminiService.js";
 import { fetchRepoContext } from "./services/githubService.js";
-import { getMermaidImageBase64, cleanMermaidCode } from "./utils/mermaidUtils.js";
+import { getMermaidImageBase64, cleanMermaidCode } from "./utils/mermaidUtils.node.js";
 
 const server = new Server(
   {

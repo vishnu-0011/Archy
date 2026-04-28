@@ -116,11 +116,9 @@ export const fetchRepoContext = async (url: string, token?: string): Promise<Rep
           const res = await fetch(contentUrl, { headers: apiHeaders });
           if (res.ok) {
             const data = await res.json();
-            if (data.content) {
-                // Decode base64
-                const content = Buffer.from(data.content, 'base64').toString('utf8');
+                // Decode base64 using browser-safe method
+                const content = decodeURIComponent(escape(atob(data.content.replace(/\s/g, ''))));
                 contextMap[filePath] = content.slice(0, 2000); // 2k characters per file limit
-            }
           }
         } catch (e) { /* silent skip */ }
       })
