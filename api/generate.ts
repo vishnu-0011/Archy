@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { getMermaidImageUrl } from "../mcp-server/src/utils/mermaidUtils";
+import { getMermaidImageUrl, cleanMermaidCode } from "../mcp-server/src/utils/mermaidUtils";
 
 const SYSTEM_INSTRUCTION = `
 You are **ArchMind**, an autonomous AI Solutions Architect modeled after a "Deep Agent" reasoning framework.
@@ -26,19 +26,12 @@ You MUST return a VALID JSON object with the following structure. Do not return 
 \`\`\`
 
 **MERMAID SYNTAX RULES:**
-1.  **Node IDs**: Use simple alphanumeric IDs (e.g., \`AuthService\`, \`UserDB\`).
-2.  **Labels**: ALWAYS quote labels: \`id["Label"]\`.
-3.  **No Comments**: Do not include comments in the mermaid string.
+1.  **Node IDs**: Use simple alphanumeric IDs with no spaces or special characters (e.g., \`AuthService\`, \`UserDB\`).
+2.  **Node Labels**: ALWAYS quote labels: \`id["Label Name"]\`. If the label contains parentheses, quotes are MANDATORY.
+3.  **Edge Labels**: ALWAYS use quotes if the edge label has special characters: \`-->|"Data Flow (JSON)"|\`.
+4.  **No Comments**: Do not include any \`%%\` comments in the mermaid string.
+5.  **No Nesting**: \`subgraph\` blocks cannot contain other \`subgraph\` blocks.
 `;
-
-const cleanMermaidCode = (code: string): string => {
-  let cleaned = code;
-  cleaned = cleaned.replace(/\[\/([^"\]\n]*?\([^\n]*?\)[^"\]\n]*?)\/\]/g, '[/"$1"/]');
-  cleaned = cleaned.replace(/&gt;/g, '>');
-  cleaned = cleaned.replace(/&lt;/g, '<');
-  cleaned = cleaned.replace(/&amp;/g, '&');
-  return cleaned;
-};
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
