@@ -26,6 +26,8 @@ Your goal is to generate professional, organized, and structurally sound archite
 3.  **Visual Hierarchy**:
     - Use \`graph TD\` for deep hierarchical systems or \`graph LR\` for high-level data flows.
     - Apply CSS classes consistently: \`:::client\`, \`:::gateway\`, \`:::service\`, \`:::db\`, \`:::storage\`, \`:::external\`.
+    - **CRITICAL**: If a node label contains parentheses or special characters, YOU MUST use double quotes. Example: \`NodeID["Label (with special chars)"]:::class\`.
+    - **CRITICAL**: Do NOT use parentheses inside square brackets \`[]\` unless the entire label is quoted. Prefer simple text for labels.
 
 4.  **Interaction Metadata**:
     - Every edge (arrow) MUST have a label describing the protocol or data type (e.g., \`-->|REST/JSON|\`, \`-->|gRPC|\`, \`-->|SQL Query|\`).
@@ -53,10 +55,14 @@ import { cleanMermaidCode } from "../utils/mermaidUtils.js";
 
 export const generateArchitecture = async (prompt: string, repoContext?: string, apiKeyOverride?: string): Promise<GenerateArchitectureResponse> => {
   try {
-    const apiKey = apiKeyOverride || process.env.GEMINI_API_KEY || process.env.API_KEY;
+    // In Vite, process.env.API_KEY is replaced by a string. 
+    // We check for it safely to avoid ReferenceErrors.
+    const apiKey = apiKeyOverride ||
+      (typeof process !== 'undefined' && process.env ? process.env.API_KEY : '') ||
+      (typeof process !== 'undefined' && process.env ? process.env.GEMINI_API_KEY : '');
 
     if (!apiKey) {
-      throw new Error("Gemini API Key is missing.");
+      throw new Error("Gemini API Key is missing. Please check your .env file.");
     }
     const ai = new GoogleGenAI({ apiKey });
 
@@ -73,7 +79,10 @@ ${prompt}
     }
 
     let responseText = "";
-    const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+    const models = [
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite',
+    ];
     let lastError: any;
     const MAX_RETRIES = 3;
     const BASE_DELAY = 1000;

@@ -11,7 +11,7 @@
 
 - **🧠 ArchMind v1.2 Engine (Deep Reasoning)**: Transitioned from flat structures to professional architectural standards. The engine now enforces tiered subgraphs (Frontend, API, Logic, Data, External) for maximum clarity and semantic organization.
 - **🔍 Deep Recursive Scanning**: Upgraded `analyze_repo` and `generate_architecture` to use recursive Git Trees scanning, extracting high-fidelity context from nested directories instead of just the root.
-- **⚡ Model Fallback & Resilience**: Integrated automatic retries and model fallbacks (Gemini 2.5 Flash Lite → Gemini 1.5 Flash) to ensure continuous operation despite API rate limits.
+- **⚡ Model Fallback & Resilience**: Integrated automatic retries and model fallbacks (Gemini 3.1 Flash-Lite → Gemini 3 Flash → Gemini 2.5 Flash) to ensure continuous operation despite API rate limits and deprecations.
 - **🔌 Standalone MCP Server**: Fully distributable NPM package for global `npx` usage or direct integration into AI agent workflows.
 
 ---
@@ -60,7 +60,7 @@ To use ArchMind within Claude, add the following to your `claude_desktop_config.
 
 - **Frontend**: React (Vite) + Vanilla CSS (Glassmorphism)
 - **Visualization**: Mermaid.js & Mermaid.ink API
-- **AI Model**: Google Gemini 2.0 Flash
+- **AI Model**: Google Gemini 3.1 Flash-Lite & Gemini 3 Flash (State-of-the-Art)
 - **Cloud Hosting**: Vercel (with Serverless Backend)
 
 ---
